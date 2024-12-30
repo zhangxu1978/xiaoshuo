@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "server.js",
+      "src": "login-app/server.js",
       "use": "@vercel/node"
     }
   ],
@@ -10,15 +10,15 @@
     {
       "src": "/api/login",
       "methods": ["POST"],
-      "dest": "server.js"
+      "dest": "login-app/server.js"
     },
     {
       "src": "/api/(.*)",
-      "dest": "server.js"
+      "dest": "login-app/server.js"
     },
     {
       "src": "/(.*)",
-      "dest": "server.js"
+      "dest": "login-app/server.js"
     }
   ]
 } 
