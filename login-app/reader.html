@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>阅读</title>
+    <style>
+.reader-container {
+    max-width: 800px;
+    margin: 70px auto 0;
+    padding: 20px;
+    line-height: 1.8;
+}
+        .chapter-title {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .chapter-content {
+    font-size: 18px;
+    color: #333;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.8;
+    font-family: "Microsoft YaHei", sans-serif;
+}
+.navigation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 20px;
+    background-color: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+        .nav-btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .nav-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .edit-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="reader-container">
+        <div class="navigation">
+            <button class="nav-btn" onclick="window.location.href='/chapters.html?bookId=' + bookId">返回目录</button>
+            <div>
+                <button class="nav-btn" id="prevChapter">上一章</button>
+                <button class="nav-btn" id="nextChapter">下一章</button>
+            </div>
+        </div>
+        
+        <h1 class="chapter-title" id="chapterTitle"></h1>
+        <div class="chapter-content" id="chapterContent"></div>
+        
+        <button class="edit-btn" id="editButton" style="display: none;">编辑章节</button>
+    </div>
+
+    <script>
+        const bookId = new URLSearchParams(window.location.search).get('bookId');
+        const chapterId = new URLSearchParams(window.location.search).get('chapterId');
+        let currentUser = null;
+        let currentBook = null;
+
+        // 检查登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/check-login');
+                const data = await response.json();
+                if (!data.success) {
+                    window.location.href = '/index.html';
+                }
+                currentUser = data.user;
+                loadBookDetails();
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+                window.location.href = '/index.html';
+            }
+        }
+
+        // 加载书籍详情
+        async function loadBookDetails() {
+            try {
+                const response = await fetch(`/api/books/${bookId}`);
+                const book = await response.json();
+                currentBook = book;
+                
+                // 如果是作者，显示编辑按钮
+                if (currentUser.username === book.author) {
+                    document.getElementById('editButton').style.display = 'block';
+                }
+                
+                loadChapter();
+            } catch (error) {
+                console.error('加载书籍详情失败:', error);
+            }
+        }
+
+        // 加载章节内容
+        async function loadChapter() {
+            try {
+                const response = await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`);
+                const chapter = await response.json();
+                
+                document.getElementById('chapterTitle').textContent = chapter.title;
+                document.getElementById('chapterContent').textContent = chapter.content;
+                // 更新导航按钮状态
+                document.getElementById('prevChapter').disabled = !chapter.prevChapterId;
+                document.getElementById('nextChapter').disabled = !chapter.nextChapterId;
+                
+                // 设置导航按钮事件
+                if (chapter.prevChapterId) {
+                    document.getElementById('prevChapter').onclick = () => {
+                        window.location.href = `/reader.html?bookId=${bookId}&chapterId=${chapter.prevChapterId}`;
+                    };
+                }
+                if (chapter.nextChapterId) {
+                    document.getElementById('nextChapter').onclick = () => {
+                        window.location.href = `/reader.html?bookId=${bookId}&chapterId=${chapter.nextChapterId}`;
+                    };
+                }
+            } catch (error) {
+                console.error('加载章节失败:', error);
+            }
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!bookId || !chapterId) {
+                window.location.href = '/bookshelf.html';
+                return;
+            }
+            checkLoginStatus();
+
+            // 编辑按钮事件
+            document.getElementById('editButton').onclick = () => {
+                window.location.href = `/editor.html?bookId=${bookId}&chapterId=${chapterId}`;
+            };
+        });
+    </script>
+</body>
+</html>

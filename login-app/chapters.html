@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>章节列表</title>
+    <style>
+        body {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .chapter-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chapter-item:hover {
+            background-color: #f5f5f5;
+        }
+        .edit-buttons {
+            display: none;
+        }
+        .chapter-item:hover .edit-buttons {
+            display: block;
+        }
+        .add-chapter-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .back-btn {
+            margin: 20px;
+            padding: 10px 20px;
+            background-color: #666;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="window.location.href='/bookshelf.html'">返回书架</button>
+    <h1 id="bookTitle">章节目录</h1>
+    <div class="chapter-list" id="chapterList"></div>
+    <button class="add-chapter-btn" id="addChapterBtn" style="display: none;">新增章节</button>
+
+    <script>
+        let currentUser = null;
+        let currentBook = null;
+        const bookId = new URLSearchParams(window.location.search).get('bookId');
+
+        // 检查登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/check-login');
+                const data = await response.json();
+                if (!data.success) {
+                    window.location.href = '/index.html';
+                }
+                currentUser = data.user;
+                loadBookDetails();
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+                window.location.href = '/index.html';
+            }
+        }
+
+        // 加载书籍详情
+        async function loadBookDetails() {
+            try {
+                const response = await fetch(`/api/books/${bookId}`);
+                const book = await response.json();
+                currentBook = book;
+                document.getElementById('bookTitle').textContent = book.title;
+                
+                // 如果是作者，显示添加章节按钮
+                if (currentUser.username === book.author) {
+                    document.getElementById('addChapterBtn').style.display = 'block';
+                }
+                
+                loadChapters();
+            } catch (error) {
+                console.error('加载书籍详情失败:', error);
+            }
+        }
+
+        // 加载章节列表
+        async function loadChapters() {
+            try {
+                const response = await fetch(`/api/books/${bookId}/chapters`);
+                const chapters = await response.json();
+                const chapterList = document.getElementById('chapterList');
+                chapterList.innerHTML = '';
+
+                chapters.forEach(chapter => {
+                    const chapterItem = document.createElement('div');
+                    chapterItem.className = 'chapter-item';
+                    chapterItem.innerHTML = `
+                        <span>${chapter.title}</span>
+                        <div class="edit-buttons">
+                            ${currentUser.username === currentBook.author ? 
+                                `<button onclick="editChapter(${chapter.id})">编辑</button>
+                                 <button onclick="deleteChapter(${chapter.id})">删除</button>` 
+                                : ''}
+                        </div>
+                    `;
+                    chapterItem.onclick = (e) => {
+                        if (!e.target.matches('button')) {
+                            window.location.href = `/reader.html?bookId=${bookId}&chapterId=${chapter.id}`;
+                        }
+                    };
+                    chapterList.appendChild(chapterItem);
+                });
+            } catch (error) {
+                console.error('加载章节失败:', error);
+            }
+        }
+
+        // 编辑章节
+        async function editChapter(chapterId) {
+            window.location.href = `/editor.html?bookId=${bookId}&chapterId=${chapterId}`;
+        }
+
+        // 删除章节
+        async function deleteChapter(chapterId) {
+            if (confirm('确定要删除这个章节吗？')) {
+                try {
+                    const response = await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        loadChapters();
+                    } else {
+                        alert('删除章节失败: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('删除章节失败:', error);
+                    alert('删除章节失败');
+                }
+            }
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!bookId) {
+                window.location.href = '/bookshelf.html';
+                return;
+            }
+            checkLoginStatus();
+
+            // 添加新章节的事件处理
+            document.getElementById('addChapterBtn').onclick = async () => {
+                window.location.href = `/editor.html?bookId=${bookId}`;
+            };
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+[
+  {
+    "id": 1,
+    "title": "示例小说",
+    "author": "zhangxu",
+    "chapters": [
+      {
+        "id": 1,
+        "title": "第一章 开始",
+        "content": "这是第一章的内容..."
+      },
+      {
+        "id": 2,
+        "title": "第二章 发展",
+        "content": "这是第二章的内容..."
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "title": "凌霜传",
+    "author": "zhangxu",
+    "chapters": []
+  }
+]

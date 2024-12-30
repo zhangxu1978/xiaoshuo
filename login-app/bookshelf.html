@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+
+    <style>
+        .book-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .book-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .book-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .add-book-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+   
+    <div class="book-grid" id="bookGrid"></div>
+    <button class="add-book-btn" id="addBookBtn" style="display: none;">新增书籍</button>
+
+    <script>
+       
+
+        // 检查登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/check-login');
+                const data = await response.json();
+                if (!data.success) {
+                    window.location.href = '/index.html';
+                }
+         
+                    document.getElementById('addBookBtn').style.display = 'block';
+                
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+                window.location.href = '/index.html';
+            }
+        }
+
+        // 加载书籍列表
+        async function loadBooks() {
+            try {
+                const response = await fetch('/api/books');
+                const books = await response.json();
+                const bookGrid = document.getElementById('bookGrid');
+                bookGrid.innerHTML = '';
+
+                books.forEach(book => {
+                    const bookCard = document.createElement('div');
+                    bookCard.className = 'book-card';
+                    bookCard.innerHTML = `
+                        <h3>${book.title}</h3>
+                        <p>作者: ${book.author}</p>
+                    `;
+                    bookCard.onclick = () => {
+                        window.location.href = `/chapters.html?bookId=${book.id}`;
+                    };
+                    bookGrid.appendChild(bookCard);
+                });
+            } catch (error) {
+                console.error('加载书籍失败:', error);
+            }
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', () => {
+            checkLoginStatus();
+            loadBooks();
+
+            // 添加新书籍的事件处理
+            document.getElementById('addBookBtn').onclick = async () => {
+                const title = prompt('请输入书籍标题:');
+                if (title) {
+                    try {
+                        const response = await fetch('/api/books', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ title })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            loadBooks();
+                        } else {
+                            alert('添加书籍失败: ' + result.message);
+                        }
+                    } catch (error) {
+                        console.error('添加书籍失败:', error);
+                        alert('添加书籍失败');
+                    }
+                }
+            };
+        });
+    </script>
+</body>
+</html>
