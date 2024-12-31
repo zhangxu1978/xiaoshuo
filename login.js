@@ -29,7 +29,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
 
         const data = await response.json();
         if (data.success) {
-            alert(data.user.username);
+            //alert(data.user.username);
             // 这里可以添加登录成功后的跳转逻辑
             window.location.href = '/bookshelf.html';
         } else {
