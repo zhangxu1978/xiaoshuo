@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session');
+const localtunnel = require('localtunnel');
 const app = express();
 const port = 3000;
 
@@ -150,8 +151,28 @@ app.post('/api/books', (req, res) => {
     res.json({ success: true, book: newBook });
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`服务器运行在 http://localhost:${port}`);
+    
+    try {
+        // 创建隧道
+        const tunnel = await localtunnel({ 
+            port: port,
+            subdomain: "myappxiaoshuo",
+            allowInvalidCert: true  // 添加这个选项来解决密码提示问题
+        });
+        
+        // 输出生成的外网访问地址
+        console.log('可以通过以下地址从外网访问：', tunnel.url);
+
+        // 监听隧道关闭事件
+        tunnel.on('close', () => {
+            console.log('隧道已关闭');
+        });
+
+    } catch (err) {
+        console.error('创建隧道时发生错误：', err);
+    }
 });
 // 在 server.js 中添加以下函数和 API 端点
 
@@ -198,9 +219,20 @@ app.get('/api/chapters/:chapterId', (req, res) => {
     const chapterId = parseInt(req.params.chapterId);
     const bookId = parseInt(req.query.bookId);
     const chapters = readChapters(bookId);
-    const chapter = chapters.find(c => c.id === chapterId);
-    if (chapter) {
-        res.json(chapter);
+    const chapterIndex = chapters.findIndex(c => c.id === chapterId);
+    
+    if (chapterIndex !== -1) {
+        // 获取当前章节
+        const chapter = chapters[chapterIndex];
+        
+        // 添加上一章和下一章的ID
+        const response = {
+            ...chapter,
+            prevChapterId: chapterIndex > 0 ? chapters[chapterIndex - 1].id : null,
+            nextChapterId: chapterIndex < chapters.length - 1 ? chapters[chapterIndex + 1].id : null
+        };
+        
+        res.json(response);
     } else {
         res.status(404).json({ success: false, message: '章节不存在' });
     }

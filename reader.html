@@ -123,17 +123,24 @@
                 
                 document.getElementById('chapterTitle').textContent = chapter.title;
                 document.getElementById('chapterContent').textContent = chapter.content;
-                // 更新导航按钮状态
-                document.getElementById('prevChapter').disabled = !chapter.prevChapterId;
-                document.getElementById('nextChapter').disabled = !chapter.nextChapterId;
+                
+                // 添加调试日志
+                console.log('章节信息:', chapter);
+                
+                // 修改判断逻辑，确保 prevChapterId 和 nextChapterId 是有效值
+                const hasPrev = chapter.prevChapterId !== null && chapter.prevChapterId !== undefined;
+                const hasNext = chapter.nextChapterId !== null && chapter.nextChapterId !== undefined;
+                
+                document.getElementById('prevChapter').disabled = !hasPrev;
+                document.getElementById('nextChapter').disabled = !hasNext;
                 
                 // 设置导航按钮事件
-                if (chapter.prevChapterId) {
+                if (hasPrev) {
                     document.getElementById('prevChapter').onclick = () => {
                         window.location.href = `/reader.html?bookId=${bookId}&chapterId=${chapter.prevChapterId}`;
                     };
                 }
-                if (chapter.nextChapterId) {
+                if (hasNext) {
                     document.getElementById('nextChapter').onclick = () => {
                         window.location.href = `/reader.html?bookId=${bookId}&chapterId=${chapter.nextChapterId}`;
                     };
