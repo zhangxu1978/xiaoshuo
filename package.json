@@ -16,7 +16,7 @@
     "connect-redis": "^7.1.1",
     "express": "^4.18.2",
     "express-session": "^1.18.1",
-    "localtunnel": "^2.0.2",
-    "login-app": "file:"
+    "login-app": "file:",
+    "ngrok": "^5.0.0-beta.2"
   }
 }

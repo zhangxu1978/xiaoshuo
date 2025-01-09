@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>章节列表</title>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <style>
         body {
             max-width: 1200px;
@@ -46,13 +47,69 @@
             border-radius: 5px;
             cursor: pointer;
         }
+        .setting-btn {
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            height: 80%;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <button class="back-btn" onclick="window.location.href='/bookshelf.html'">返回书架</button>
+    <button class="setting-btn" onclick="showModal('environment')">环境设定</button>
+    <button class="setting-btn" onclick="showModal('characters')">人物设定</button>
+    <button class="setting-btn" onclick="showModal('items')">物品设定</button>
+    <button class="setting-btn" onclick="showModal('timeline')">大事记</button>
+    <button class="setting-btn" onclick="generateStaticPage()">生成静态页面</button>
     <h1 id="bookTitle">章节目录</h1>
     <div class="chapter-list" id="chapterList"></div>
     <button class="add-chapter-btn" id="addChapterBtn" style="display: none;">新增章节</button>
+
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle"></h2>
+            <textarea id="modalText" style="width: 100%; height: 80%;"></textarea>
+            <button onclick="saveModalContent()">保存</button>
+        </div>
+    </div>
 
     <script>
         let currentUser = null;
@@ -151,19 +208,163 @@
             }
         }
 
-        // 页面加载完成后执行
-        document.addEventListener('DOMContentLoaded', () => {
-            if (!bookId) {
-                window.location.href = '/bookshelf.html';
-                return;
-            }
-            checkLoginStatus();
-
-            // 添加新章节的事件处理
-            document.getElementById('addChapterBtn').onclick = async () => {
-                window.location.href = `/editor.html?bookId=${bookId}`;
-            };
+        // 显示模态框
+function showModal(type) {
+    const modal = document.getElementById('myModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalText = document.getElementById('modalText');
+    modal.style.display = 'block';
+    modalTitle.textContent = type + ' 设定';
+    fetch(`/api/settings/${type}?bookId=${bookId}`)
+        .then(response => response.json())
+        .then(data => {
+            modalText.value = data.value || '';
+        })
+        .catch(error => {
+            console.error('获取设定失败:', error);
+            modalText.value = '';
         });
+}
+        // 关闭模态框
+        function closeModal() {
+            const modal = document.getElementById('myModal');
+            modal.style.display = 'none';
+        }
+
+        // 保存模态框内容
+function saveModalContent() {
+    const modalText = document.getElementById('modalText');
+    const modalTitle = document.getElementById('modalTitle');
+    const type = modalTitle.textContent.split(' ')[0].toLowerCase();
+    fetch(`/api/settings/${type}?bookId=${bookId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ value: modalText.value })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeModal();
+        } else {
+            alert('保存设定失败: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('保存设定失败:', error);
+        alert('保存设定失败');
+    });
+}
+
+// 生成静态页面
+async function generateStaticPage() {
+    try {
+        // 获取书籍信息和章节列表
+        const bookResponse = await fetch(`/api/books/${bookId}`);
+        const book = await bookResponse.json();
+        
+        const chaptersResponse = await fetch(`/api/books/${bookId}/chapters`);
+        const chapters = await chaptersResponse.json();
+
+        // 生成静态HTML内容
+        const staticHtml = `
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>${book.title}</title>
+    <style>
+        body {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .chapter-list {
+            list-style: none;
+            padding: 0;
+        }
+        .chapter-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        .chapter-item:hover {
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>${book.title}</h1>
+    <div class="chapter-list">
+        ${chapters.map(chapter => `
+            <div class="chapter-item" onclick="window.location.href='chapter_${chapter.id}.html'">
+                ${chapter.title}
+            </div>
+        `).join('')}
+    </div>
+</body>
+</html>`;
+
+        // 发送请求到服务器生成静态文件
+        const response = await fetch('/api/generate-static', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                bookId: bookId,
+                html: staticHtml,
+                chapters: chapters
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('静态页面生成成功！访问路径：/static/' + bookId + '/index.html');
+        } else {
+            alert('生成静态页面失败: ' + result.message);
+        }
+    } catch (error) {
+        console.error('生成静态页面失败:', error);
+        alert('生成静态页面失败');
+    }
+}
+
+        // 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', () => {
+    if (!bookId) {
+        window.location.href = '/bookshelf.html';
+        return;
+    }
+    checkLoginStatus();
+
+    // 添加新章节的事件处理
+    document.getElementById('addChapterBtn').onclick = async () => {
+        window.location.href = `/editor.html?bookId=${bookId}`;
+    };
+
+    // 拖动模态框
+    interact('.modal-content')
+        .draggable({
+            listeners: {
+                move: function (event) {
+                    const target = event.target;
+                    const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                    const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+
+                    target.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+                    target.setAttribute('data-x', x);
+                    target.setAttribute('data-y', y);
+                }
+            }
+        });
+});
     </script>
 </body>
 </html>

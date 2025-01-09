@@ -3,9 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-const localtunnel = require('localtunnel');
+const ngrok = require('ngrok');
 const app = express();
-const port = 3000;
+const port = 8090;
 
 app.use(express.static(path.join(__dirname)));
 app.use(bodyParser.json());
@@ -50,8 +50,6 @@ app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const users = readUsers();
     const user = users.find(u => u.username === username && u.password === password);
-   //打印 用户信息
-    console.log(user);
     if (user) {
         // 保存用户信息到session
         req.session.user = {
@@ -154,25 +152,19 @@ app.post('/api/books', (req, res) => {
 app.listen(port, async () => {
     console.log(`服务器运行在 http://localhost:${port}`);
     
-    try {
-        // 创建隧道
-        const tunnel = await localtunnel({ 
-            port: port,
-            subdomain: "myappxiaoshuo",
-            allowInvalidCert: true  // 添加这个选项来解决密码提示问题
-        });
+    // try {
+    //     // 创建 ngrok 隧道
+    //     const url = await ngrok.connect({
+    //         addr: port,
+    //          authtoken: '2qzIampQVvHE4eZKvkGZdigmEcJ_pQwuL8wKfUXQrp5RAi9U',  // 如果你有 ngrok 账号，可以添加这行
+    //     });
         
-        // 输出生成的外网访问地址
-        console.log('可以通过以下地址从外网访问：', tunnel.url);
+    //     // 输出生成的外网访问地址
+    //     console.log('可以通过以下地址从外网访问：', url);
 
-        // 监听隧道关闭事件
-        tunnel.on('close', () => {
-            console.log('隧道已关闭');
-        });
-
-    } catch (err) {
-        console.error('创建隧道时发生错误：', err);
-    }
+    // } catch (err) {
+    //     console.error('创建隧道时发生错误：', err);
+    // }
 });
 // 在 server.js 中添加以下函数和 API 端点
 
@@ -273,5 +265,124 @@ app.delete('/api/chapters/:chapterId', (req, res) => {
         res.json({ success: true, message: '章节删除成功' });
     } else {
         res.status(404).json({ success: false, message: '章节不存在' });
+    }
+});
+// 读取设定数据
+function readSetting(type, bookId) {
+    try {
+        const data = fs.readFileSync(path.join(__dirname, `${type}_${bookId}.json`));
+        return JSON.parse(data);
+    } catch (error) {
+        return {};
+    }
+}
+
+// 保存设定数据
+function saveSetting(type, bookId, data) {
+    fs.writeFileSync(path.join(__dirname, `${type}_${bookId}.json`), JSON.stringify(data, null, 2));
+}
+
+// API端点
+app.get('/api/settings/:type', (req, res) => {
+    const { type } = req.params;
+    const { bookId } = req.query;
+    const data = readSetting(type, bookId);
+    res.json({ success: true, value: data });
+});
+
+app.post('/api/settings/:type', (req, res) => {
+    const { type } = req.params;
+    const { bookId } = req.query;
+    const data = req.body.value;
+    saveSetting(type, bookId, data);
+    res.json({ success: true, message: `${type} 保存成功` });
+});
+
+// 生成静态页面
+app.post('/api/generate-static', async (req, res) => {
+    try {
+        const { bookId, html, chapters } = req.body;
+        
+        // 创建静态页面目录
+        const staticDir = path.join(__dirname, 'static', bookId.toString());
+        if (!fs.existsSync(staticDir)) {
+            fs.mkdirSync(staticDir, { recursive: true });
+        }
+
+        // 写入主页面
+        fs.writeFileSync(path.join(staticDir, 'index.html'), html);
+
+        // 为每个章节生成静态页面
+        for (const chapter of chapters) {
+            const chapterHtml = `
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>${chapter.title}</title>
+    <style>
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+        .chapter-title {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .chapter-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .nav-button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .nav-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="chapter-title">${chapter.title}</h1>
+    <div class="chapter-content">${chapter.content}</div>
+    <div class="navigation">
+        <a href="index.html" class="nav-button">返回目录</a>
+        ${chapter.id > 1 ? `<a href="chapter_${chapter.id - 1}.html" class="nav-button">上一章</a>` : ''}
+        ${chapter.id < chapters.length ? `<a href="chapter_${chapter.id + 1}.html" class="nav-button">下一章</a>` : ''}
+    </div>
+</body>
+</html>`;
+            
+            fs.writeFileSync(path.join(staticDir, `chapter_${chapter.id}.html`), chapterHtml);
+        }
+
+        // 添加静态文件目录到express
+        app.use('/static', express.static(path.join(__dirname, 'static')));
+
+        res.json({ 
+            success: true, 
+            message: '静态页面生成成功',
+            path: `/static/${bookId}/index.html`
+        });
+    } catch (error) {
+        console.error('生成静态页面失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: '生成静态页面失败: ' + error.message 
+        });
     }
 });
