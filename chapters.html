@@ -73,7 +73,7 @@
             padding: 20px;
             border: 1px solid #888;
             width: 80%;
-            max-width: 600px;
+ 
             height: 80%;
             overflow-y: auto;
         }
@@ -107,6 +107,7 @@
     <button class="setting-btn" onclick="showModal('items')">物品设定</button>
     <button class="setting-btn" onclick="showModal('timeline')">大事记</button>
     <button class="setting-btn" onclick="generateStaticPage()">生成静态页面</button>
+    <button class="setting-btn" onclick="showAiModal()">问问ai</button>
     <h1 id="bookTitle">章节目录</h1>
     <div class="chapter-list" id="chapterList"></div>
     <button class="add-chapter-btn" id="addChapterBtn" style="display: none;">新增章节</button>
@@ -119,6 +120,21 @@
             </div>
             <textarea id="modalText" style="width: 100%; height: 80%;"></textarea>
             <button onclick="saveModalContent()">保存</button>
+        </div>
+    </div>
+
+    <div id="aiModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <h2>问问AI</h2>
+                    <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="loadSettingToAi('environment')">载入环境</button>
+                    <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="loadSettingToAi('characters')">载入人物</button>
+                    <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="loadSettingToAi('timeline')">载入时间线</button>
+                </div>
+                <span class="close" onclick="closeAiModal()">&times;</span>
+            </div>
+            <iframe id="aiFrame" src="a.html" style="width: 100%; height: 80%; border: none;"></iframe>
         </div>
     </div>
 
@@ -220,22 +236,23 @@
         }
 
         // 显示模态框
-function showModal(type) {
-    const modal = document.getElementById('myModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalText = document.getElementById('modalText');
-    modal.style.display = 'block';
-    modalTitle.textContent = type + ' 设定';
-    fetch(`/api/settings/${type}?bookId=${bookId}`)
-        .then(response => response.json())
-        .then(data => {
-            modalText.value = data.value || '';
-        })
-        .catch(error => {
-            console.error('获取设定失败:', error);
-            modalText.value = '';
-        });
-}
+        function showModal(type) {
+            const modal = document.getElementById('myModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalText = document.getElementById('modalText');
+            modal.style.display = 'block';
+            modalTitle.textContent = type + ' 设定';
+            fetch(`/api/settings/${type}?bookId=${bookId}`)
+                .then(response => response.json())
+                .then(data => {
+                    modalText.value = data.value || '';
+                })
+                .catch(error => {
+                    console.error('获取设定失败:', error);
+                    modalText.value = '';
+                });
+        }
+
         // 关闭模态框
         function closeModal() {
             const modal = document.getElementById('myModal');
@@ -243,43 +260,43 @@ function showModal(type) {
         }
 
         // 保存模态框内容
-function saveModalContent() {
-    const modalText = document.getElementById('modalText');
-    const modalTitle = document.getElementById('modalTitle');
-    const type = modalTitle.textContent.split(' ')[0].toLowerCase();
-    fetch(`/api/settings/${type}?bookId=${bookId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ value: modalText.value })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            closeModal();
-        } else {
-            alert('保存设定失败: ' + data.message);
+        function saveModalContent() {
+            const modalText = document.getElementById('modalText');
+            const modalTitle = document.getElementById('modalTitle');
+            const type = modalTitle.textContent.split(' ')[0].toLowerCase();
+            fetch(`/api/settings/${type}?bookId=${bookId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ value: modalText.value })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    closeModal();
+                } else {
+                    alert('保存设定失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('保存设定失败:', error);
+                alert('保存设定失败');
+            });
         }
-    })
-    .catch(error => {
-        console.error('保存设定失败:', error);
-        alert('保存设定失败');
-    });
-}
 
-// 生成静态页面
-async function generateStaticPage() {
-    try {
-        // 获取书籍信息和章节列表
-        const bookResponse = await fetch(`/api/books/${bookId}`);
-        const book = await bookResponse.json();
-        
-        const chaptersResponse = await fetch(`/api/books/${bookId}/chapters`);
-        const chapters = await chaptersResponse.json();
+        // 生成静态页面
+        async function generateStaticPage() {
+            try {
+                // 获取书籍信息和章节列表
+                const bookResponse = await fetch(`/api/books/${bookId}`);
+                const book = await bookResponse.json();
+                
+                const chaptersResponse = await fetch(`/api/books/${bookId}/chapters`);
+                const chapters = await chaptersResponse.json();
 
-        // 生成静态HTML内容
-        const staticHtml = `
+                // 生成静态HTML内容
+                const staticHtml = `
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -322,61 +339,95 @@ async function generateStaticPage() {
 </body>
 </html>`;
 
-        // 发送请求到服务器生成静态文件
-        const response = await fetch('/api/generate-static', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                bookId: bookId,
-                html: staticHtml,
-                chapters: chapters
-            })
-        });
+                // 发送请求到服务器生成静态文件
+                const response = await fetch('/api/generate-static', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bookId: bookId,
+                        html: staticHtml,
+                        chapters: chapters
+                    })
+                });
 
-        const result = await response.json();
-        if (result.success) {
-            alert('静态页面生成成功！访问路径：/static/' + bookId + '/index.html');
-        } else {
-            alert('生成静态页面失败: ' + result.message);
+                const result = await response.json();
+                if (result.success) {
+                    alert('静态页面生成成功！访问路径：/static/' + bookId + '/index.html');
+                } else {
+                    alert('生成静态页面失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('生成静态页面失败:', error);
+                alert('生成静态页面失败');
+            }
         }
-    } catch (error) {
-        console.error('生成静态页面失败:', error);
-        alert('生成静态页面失败');
-    }
-}
+
+        // 显示AI模态框
+        function showAiModal() {
+            const modal = document.getElementById('aiModal');
+            modal.style.display = 'block';
+        }
+
+        // 关闭AI模态框
+        function closeAiModal() {
+            const modal = document.getElementById('aiModal');
+            modal.style.display = 'none';
+        }
+
+        // 加载设定内容到AI iframe
+        async function loadSettingToAi(type) {
+            try {
+                const response = await fetch(`/api/settings/${type}?bookId=${bookId}`);
+                const data = await response.json();
+                const content = data.value || '';
+                
+                // 获取iframe并设置内容到user-input输入框
+                const aiFrame = document.getElementById('aiFrame');
+                const userInput = aiFrame.contentDocument.getElementById('user-input');
+                if (userInput) {
+                    userInput.value += content;
+                    // 触发input事件以调整输入框高度
+                    const event = new Event('input', { bubbles: true });
+                    userInput.dispatchEvent(event);
+                }
+            } catch (error) {
+                console.error('加载设定失败:', error);
+                alert('加载设定失败');
+            }
+        }
 
         // 页面加载完成后执行
-document.addEventListener('DOMContentLoaded', () => {
-    if (!bookId) {
-        window.location.href = '/bookshelf.html';
-        return;
-    }
-    checkLoginStatus();
-
-    // 添加新章节的事件处理
-    document.getElementById('addChapterBtn').onclick = async () => {
-        window.location.href = `/editor.html?bookId=${bookId}`;
-    };
-
-    // 拖动模态框
-    interact('.modal-content')
-        .draggable({
-            allowFrom: '.modal-header',
-            listeners: {
-                move: function (event) {
-                    const target = event.target;
-                    const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
-                    const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-
-                    target.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
-                    target.setAttribute('data-x', x);
-                    target.setAttribute('data-y', y);
-                }
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!bookId) {
+                window.location.href = '/bookshelf.html';
+                return;
             }
+            checkLoginStatus();
+
+            // 添加新章节的事件处理
+            document.getElementById('addChapterBtn').onclick = async () => {
+                window.location.href = `/editor.html?bookId=${bookId}`;
+            };
+
+            // 拖动模态框
+            interact('.modal-content')
+                .draggable({
+                    allowFrom: '.modal-header',
+                    listeners: {
+                        move: function (event) {
+                            const target = event.target;
+                            const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                            const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+
+                            target.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+                            target.setAttribute('data-x', x);
+                            target.setAttribute('data-y', y);
+                        }
+                    }
+                });
         });
-});
     </script>
 </body>
 </html>

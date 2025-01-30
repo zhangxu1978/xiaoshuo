@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Access</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #response-container {
+            flex-grow: 1;
+            padding: 20px;
+            padding-bottom: 100px;
+            overflow-y: auto;
+        }
+
+        div[role='user'], div[role='assistant'] {
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        div[role='user'] {
+            background-color: #d9edf7;
+        }
+
+        div[role='assistant'] {
+            background-color: #f2dede;
+            white-space: pre-line;
+        }
+
+        .delete-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #ff6347;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 20px;
+            text-align: center;
+        }
+
+        .copy-button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        pre {
+            background-color: #f7f7f7;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: monospace;
+            position: relative;
+            margin: 0; /* Remove default margin */
+        }
+
+        #input-container {
+            background-color: #fff;
+            box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            border-radius: 30px;
+            width: 50%;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        #input-container:focus-within {
+            width: 90%;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 40px;
+            max-height: 200px;
+            transition: all 0.3s ease;
+        }
+
+        #send-button, #load-button, #download-button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        #load-button {
+            background-color: #28a745; /* Different color for load button */
+        }
+
+        input[type="file"] {
+            display: none; /* Hide the file input */
+        }
+
+        .icon {
+            width: 16px; /* Set icon width */
+            height: 16px; /* Set icon height */
+            margin-right: 5px; /* Space between icon and text */
+        }
+
+        #model-select {
+            margin-right: 10px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid #e0e0e0;
+            background-color: #f8f9fa;
+            font-size: 14px;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23495057' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 16px;
+            padding-right: 30px;
+        }
+
+        #model-select:hover {
+            border-color: #007bff;
+            background-color: #fff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+        }
+
+        #model-select:focus {
+            border-color: #007bff;
+            background-color: #fff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.2);
+        }
+
+        #model-select option {
+            padding: 10px;
+            background-color: #fff;
+            color: #495057;
+        }
+
+        .action-menu {
+            position: relative;
+            margin-right: 10px;
+        }
+
+        .action-button {
+            background-color: #f0f0f0;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .action-button:hover {
+            background-color: #e0e0e0;
+        }
+
+        .action-dropdown {
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 8px 0;
+            margin-bottom: 10px;
+            min-width: 150px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+        }
+
+        .action-menu:hover .action-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .action-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            transition: background-color 0.2s;
+        }
+
+        .action-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .action-item .icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            color: #333;
+        }
+
+        /* 添加小三角形 */
+        .action-dropdown::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            right: 10px;
+            width: 10px;
+            height: 10px;
+            background-color: white;
+            transform: rotate(45deg);
+            box-shadow: 2px 2px 2px rgba(0,0,0,0.05);
+        }
+
+        #download-button {
+            background: none;
+            color: #333;
+            padding: 8px 16px;
+            margin: 0;
+            width: 100%;
+            justify-content: flex-start;
+            font-size: 14px;
+        }
+
+        #download-button:hover {
+            background-color: #f5f5f5;
+        }
+        #clear-button {
+    background: none;
+    color: #333;
+    padding: 8px 16px;
+    margin: 0;
+    width: 100%;
+    justify-content: flex-start;
+    font-size: 14px;
+}
+
+#clear-button:hover {
+    background-color: #f5f5f5;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="response-container"></div>
+    <div id="input-container">
+        <select id="model-select" style="margin-right: 5px; padding: 5px; border-radius: 5px;">
+            <option value="xai">XAI</option>
+            <option value="qianwen">Qianwen</option>
+            <option value="gemini-2.0-flash-thinking">gemini</option>
+            <option value="deepseek">deepseek</option>
+            <option selected value="google-ai">谷歌 AI</option>
+        </select>
+        <div class="action-menu">
+            <button class="action-button">⋮</button>
+            <div class="action-dropdown">
+                <label for="file-input" class="action-item">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path fill="none" stroke="currentColor" stroke-width="2" d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
+                    上传对话
+                </label>
+                <button class="action-item" id="download-button">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path fill="none" stroke="currentColor" stroke-width="2" d="M12 5v14m0 0l-6-6m6 6l6-6"/>
+                    </svg>
+                    下载对话
+                </button>
+                <button class="action-item" id="clear-button">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path fill="none" stroke="currentColor" stroke-width="2" d="M6 18l6-6 6 6M18 18V6M6 6v12"/>
+                    </svg>
+                    清空对话
+                </button>
+                <button class="action-item" id="merge-chapters-button">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path fill="none" stroke="currentColor" stroke-width="2" d="M8 6h13M8 12h13M8 18h13M3 6h2M3 12h2M3 18h2"/>
+                    </svg>
+                    合并章节
+                </button>
+            </div>
+            <input type="file" id="file-input" accept=".json" style="display: none;" onchange="loadFile(event)">
+        </div>
+        <textarea id="user-input" placeholder="shift enter 发送数据"></textarea>
+        <button id="send-button">发送</button>
+    </div>
+
+    <script>
+        let conversationHistory = [];
+
+        async function callAPI(message) {
+            const modelType = document.getElementById('model-select').value;
+            
+            if (modelType === 'xai') {
+                const url = 'https://api.x.ai/v1/chat/completions';
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer xai-0zKfaBacZ2DJXTNhfS4fnjhObmNSPSnEamvmLP4F9lc7lEu5G1MarMU6R88VBwef0c2DHDvS8u57Thb0'
+                };
+                const data = {
+                    "messages": conversationHistory.concat([{ "role": "user", "content": message }]),
+                    "model": "grok-beta",
+                    "stream": false,
+                    "temperature": 0
+                };
+
+                try {
+                    const response = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) });
+                    const result = await response.json();
+                    return result;
+                } catch (error) {
+                    console.error('Error:', error);
+                    return null;
+                }
+            } else if (modelType === 'gemini-2.0-flash-thinking') {
+                const url = 'https://openrouter.ai/api/v1/chat/completions';
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer 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',
+                };
+                const data = {
+                    "model": "google/gemini-2.0-flash-thinking-exp:free",
+                    "messages": conversationHistory.concat([{ "role": "user", "content": message }])
+                };
+
+                try {
+                    const response = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) });
+                    const result = await response.json();
+                    return result;
+                } catch (error) {
+                    console.error('Error:', error);
+                    return null;
+                }
+            } else if (modelType === 'qianwen') {
+                const url = 'https://openrouter.ai/api/v1/chat/completions';
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer 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',
+
+                };
+                const data = {
+                    "model": "qwen/qwen-2-7b-instruct:free",
+                    "messages": conversationHistory.concat([{ "role": "user", "content": message }])
+                };
+
+                try {
+                    const response = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) });
+                    const result = await response.json();
+                    return result;
+                } catch (error) {
+                    console.error('Error:', error);
+                    return null;
+            }
+            } else if (modelType === 'deepseek') {
+                const url = 'https://openrouter.ai/api/v1/chat/completions';
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer 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',
+                };
+                
+                const data = {
+                    "model": "deepseek/deepseek-r1:free",
+                    "messages": conversationHistory.concat([{
+                        "role": "user",
+                        "content": [{
+                            "type": "text",
+                            "text": message
+                        }]
+                    }])
+                };
+
+                try {
+                    const response = await fetch(url, { 
+                        method: 'POST', 
+                        headers: headers, 
+                        body: JSON.stringify(data) 
+        });
+                    const result = await response.json();
+                    return result;
+                } catch (error) {
+                    console.error('Error:', error);
+                    return null;
+                }
+            } else if (modelType === 'google-ai') {
+                const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                // gemini-2.0-flash-exp gemini-exp-1121 gemini-1.5-flash
+               //将 conversationHistory中的message 转换为 google-ai 的格式
+               let googleaiformat = [];
+               for(let i = 0;i<conversationHistory.length;i++){
+                    let d= {
+                        "role": conversationHistory[i].role=="user"?"user":"model",
+
+                        "parts": [{"text": conversationHistory[i].content}]
+                    }  
+                    googleaiformat.push(d);
+               }
+               googleaiformat.push([{
+                        "role": "user",
+                        "parts": [{"text": message}]
+                    }]);
+                const data = {
+                    "contents":googleaiformat
+                };
+
+                try {
+                    const response = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) });
+                    const result = await response.json();
+                    return result;
+                } catch (error) {
+                    console.error('Error:', error);
+                    return null;
+                }
+            }
+        }
+
+        document.getElementById('send-button').addEventListener('click', async () => {
+            await sendMessage();
+        });
+
+        document.getElementById('user-input').addEventListener('keydown', async (event) => {
+            if (event.key === 'Enter') {
+                if (event.shiftKey) {
+                    // Shift + Enter: 发送消息
+                    event.preventDefault();
+                    await sendMessage();
+            }
+                // 普通回车: 默认换行行为，不需要做任何处理
+            }
+        });
+
+        function loadFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+            try {
+                        const json = JSON.parse(e.target.result);
+                        loadConversationHistory(json);
+                    } catch (error) {
+                        alert('无法加载文件：无效的 JSON 格式。');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        async function sendMessage() {
+            const userInput = document.getElementById('user-input').value;
+            if (userInput.trim() !== '') {
+                const responseData = await callAPI(userInput);
+                const modelType = document.getElementById('model-select').value;
+
+                if (responseData) {
+                    let assistantMessage;
+
+                    if (modelType === 'google-ai') {
+                        assistantMessage = responseData.candidates[0].content.parts[0].text;
+                    } else {
+                        assistantMessage = responseData.choices[0].message.content;
+                    }
+
+                    createMessageElement('user', '你：' + userInput);
+                    createAssistantMessageElement(assistantMessage);
+
+                    conversationHistory.push({ "role": "user", "content": userInput });
+                    conversationHistory.push({ "role": "assistant", "content": assistantMessage });
+                } else {
+                    createMessageElement('error', '发生错误，无法获取响应。');
+                }
+                document.getElementById('user-input').value = '';
+            }
+        }
+
+        function createMessageElement(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.setAttribute('role', role);
+            messageDiv.textContent = content;
+            addDeleteButton(messageDiv);
+            document.getElementById('response-container').appendChild(messageDiv);
+        }
+
+        function createAssistantMessageElement(assistantMessage) {
+            const assistantResponseDiv = document.createElement('div');
+            assistantResponseDiv.setAttribute('role', 'assistant');
+
+            // Check for code blocks
+            const codeRegex = /```([\s\S]*?)```/g;
+            const parts = assistantMessage.split(codeRegex);
+            parts.forEach((part, index) => {
+                if (index % 2 === 0) {
+                    // Regular text
+                    assistantResponseDiv.appendChild(document.createTextNode(part));
+                } else {
+                    // Code block
+                    const codePre = document.createElement('pre');
+                    codePre.textContent = part;
+                    const copyButton = document.createElement('button');
+                    copyButton.textContent = '复制';
+                    copyButton.classList.add('copy-button');
+                    copyButton.addEventListener('click', () => copyToClipboard(part));
+                    codePre.appendChild(copyButton);
+                    assistantResponseDiv.appendChild(codePre);
+                }
+            });
+
+            addDeleteButton(assistantResponseDiv);
+            document.getElementById('response-container').appendChild(assistantResponseDiv);
+        }
+
+        function addDeleteButton(messageDiv) {
+            const deleteButton = document.createElement('button');
+            deleteButton.classList.add('delete-button');
+            deleteButton.textContent = 'X';
+            deleteButton.addEventListener('click', () => {
+                document.getElementById('response-container').removeChild(messageDiv);
+                const index = Array.from(document.getElementById('response-container').children).indexOf(messageDiv);
+                conversationHistory.splice(index, 1);
+                });
+            messageDiv.appendChild(deleteButton);
+        }
+
+        function loadConversationHistory(json) {
+            if (Array.isArray(json)) {
+                conversationHistory = json; // Update conversation history
+                document.getElementById('response-container').innerHTML = ''; // Clear current messages
+                json.forEach(({ role, content }) => {
+                    createMessageElement(role, (role === 'user' ? '你：' : '助手：') + content);
+                });
+                } else {
+                alert('无效的历史记录格式。请确保是一个消息数组。');
+                }
+            }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('代码已复制到剪贴板');
+            }).catch(err => {
+                console.error('复制失败', err);
+            });
+        }
+
+        document.getElementById('download-button').addEventListener('click', () => {
+            if (conversationHistory.length === 0) {
+                alert('没有数据可下载。');
+                return;
+        }
+
+            const now = new Date();
+            const formattedDate = now.toISOString().replace(/T/, '_').replace(/:/g, '-').substring(0, 19);
+            const filename = `message_${formattedDate}.json`;
+
+            const blob = new Blob([JSON.stringify(conversationHistory, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url); // Clean up
+        });
+        document.getElementById('clear-button').addEventListener('click', () => {
+    // 清空对话历史记录
+    conversationHistory = [];
+
+    // 清空显示的内容
+    document.getElementById('response-container').innerHTML = '';
+});
+
+document.getElementById('merge-chapters-button').addEventListener('click', () => {
+    const mergeText = "请你把下面的几篇文章合并成一章，并重新命名。注意章回之间的过渡要稍作修改，使得过渡不那么生硬。你新添加的文字请用【】括起来，方便查看";
+    document.getElementById('user-input').value = mergeText;
+    document.getElementById('user-input').style.height = document.getElementById('user-input').scrollHeight + 'px';
+});
+
+document.getElementById('user-input').addEventListener('input', function() {
+    this.style.height = 'auto'; // 重置高度
+    this.style.height = this.scrollHeight + 'px'; // 设置高度为内容的实际高度
+});
+    </script>
+</body>
+
+</html>
