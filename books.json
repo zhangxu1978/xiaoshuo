@@ -3,6 +3,7 @@
     "id": 1,
     "title": "示例小说",
     "author": "zhangxu",
+    "status": "连载中",
     "chapters": [
       {
         "id": 1,
@@ -20,24 +21,28 @@
     "id": 2,
     "title": "凌霜传",
     "author": "zhangxu",
+    "status": "连载中",
     "chapters": []
   },
   {
     "id": 3,
     "title": "林若水传",
     "author": "zhangxu",
+    "status": "连载中",
     "chapters": []
   },
   {
     "id": 4,
     "title": "妖怪日常记事簿",
     "author": "zhangxu",
+    "status": "连载中",
     "chapters": []
   },
   {
     "id": 5,
     "title": "穿越吧苏砚秋",
     "author": "zhangxu",
+    "status": "连载中",
     "chapters": []
   }
 ]
