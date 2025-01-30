@@ -131,6 +131,8 @@
                     <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="loadSettingToAi('environment')">载入环境</button>
                     <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="loadSettingToAi('characters')">载入人物</button>
                     <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="loadSettingToAi('timeline')">载入时间线</button>
+                    <input type="number" id="chapterInput" placeholder="输入章节号" style="width: 100px; padding: 5px;">
+                    <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="loadChapterToAi()">载入章节</button>
                 </div>
                 <span class="close" onclick="closeAiModal()">&times;</span>
             </div>
@@ -395,6 +397,40 @@
             } catch (error) {
                 console.error('加载设定失败:', error);
                 alert('加载设定失败');
+            }
+        }
+
+        // 加载章节内容到AI iframe
+        async function loadChapterToAi() {
+            try {
+                const chapterInput = document.getElementById('chapterInput');
+                const chapterId = chapterInput.value;
+                
+                if (!chapterId) {
+                    alert('请输入章节号');
+                    return;
+                }
+
+                const response = await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`);
+                const data = await response.json();
+                
+                if (!data.content) {
+                    alert('未找到该章节内容');
+                    return;
+                }
+
+                // 获取iframe并设置内容到user-input输入框
+                const aiFrame = document.getElementById('aiFrame');
+                const userInput = aiFrame.contentDocument.getElementById('user-input');
+                if (userInput) {
+                    userInput.value += '\n\n第' + chapterId + '章内容：\n' + data.content;
+                    // 触发input事件以调整输入框高度
+                    const event = new Event('input', { bubbles: true });
+                    userInput.dispatchEvent(event);
+                }
+            } catch (error) {
+                console.error('加载章节失败:', error);
+                alert('加载章节失败');
             }
         }
 

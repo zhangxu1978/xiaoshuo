@@ -431,7 +431,7 @@
                 const headers = {
                     'Content-Type': 'application/json',
                 };
-                // gemini-2.0-flash-exp gemini-exp-1121 gemini-1.5-flash
+                // gemini-2.0-flash-exp gemini-exp-1121 gemini-1.5-flash gemini-2.0-flash-thinking-exp
                //将 conversationHistory中的message 转换为 google-ai 的格式
                let googleaiformat = [];
                for(let i = 0;i<conversationHistory.length;i++){
@@ -616,7 +616,7 @@
 });
 
 document.getElementById('merge-chapters-button').addEventListener('click', () => {
-    const mergeText = "请你把下面的几篇文章合并成一章，并重新命名。注意章回之间的过渡要稍作修改，使得过渡不那么生硬。你新添加的文字请用【】括起来，方便查看";
+    const mergeText = "请你把下面的几篇文章合并成一章，并重新命名。注意章回之间的过渡要稍作修改，使得过渡不那么生硬。你新添加的文字请用【】括起来，方便查看.合并后的文章用markdown的代码方式输出，方便复制";
     document.getElementById('user-input').value = mergeText;
     document.getElementById('user-input').style.height = document.getElementById('user-input').scrollHeight + 'px';
 });
