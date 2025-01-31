@@ -1,0 +1,13 @@
+{
+  "name": "browser-automation",
+  "version": "1.0.0",
+  "description": "浏览器自动化操作示例",
+  "main": "example.js",
+  "scripts": {
+    "start": "node example.js"
+  },
+  "dependencies": {
+    "browser-automation": "file:",
+    "puppeteer": "^24.1.1"
+  }
+}
