@@ -57,12 +57,69 @@
             border-radius: 5px;
             cursor: pointer;
         }
+
+/* 添加弹出框样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 5px;
+}
+
+.modal textarea {
+    width: 100%;
+    height: 200px;
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+}
+
+.modal-buttons {
+    text-align: right;
+}
+
+.modal-btn {
+    padding: 8px 16px;
+    margin-left: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.modal-btn.confirm {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.modal-btn.cancel {
+    background-color: #f44336;
+    color: white;
+}
     </style>
 </head>
 <body>
     <div class="reader-container">
         <div class="navigation">
-            <button class="nav-btn" onclick="window.location.href='/chapters.html?bookId=' + bookId">返回目录</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="nav-btn" onclick="window.location.href='/chapters.html?bookId=' + bookId">返回目录</button>
+                <button class="nav-btn" onclick="handleAiPolish()">AI润色</button>
+            </div>
             <div>
                 <button class="nav-btn" id="prevChapter">上一章</button>
                 <button class="nav-btn" id="nextChapter">下一章</button>
@@ -73,6 +130,18 @@
         <div class="chapter-content" id="chapterContent"></div>
         
         <button class="edit-btn" id="editButton" style="display: none;">编辑章节</button>
+
+        <!-- 添加弹出框 -->
+        <div id="aiPolishModal" class="modal">
+            <div class="modal-content">
+                <h2>AI润色</h2>
+                <textarea id="selectedText" placeholder="在这里输入需要润色的文字"></textarea>
+                <div class="modal-buttons">
+                    <button class="modal-btn cancel" onclick="closeModal()">取消</button>
+                    <button class="modal-btn confirm" onclick="submitAiPolish()">确定</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -163,6 +232,40 @@
                 window.location.href = `/editor.html?bookId=${bookId}&chapterId=${chapterId}`;
             };
         });
+
+        // 添加AI润色相关函数
+        function handleAiPolish() {
+            const selectedText = window.getSelection().toString().trim();
+            const modal = document.getElementById('aiPolishModal');
+            const textArea = document.getElementById('selectedText');
+            
+            if (selectedText) {
+                textArea.value = selectedText;
+                modal.style.display = 'block';
+            } else {
+                alert('请先选择需要润色的文字');
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('aiPolishModal');
+            modal.style.display = 'none';
+        }
+
+        function submitAiPolish() {
+            const selectedText = document.getElementById('selectedText').value;
+            // TODO: 这里添加调用AI润色API的逻辑
+            console.log('提交润色的文字:', selectedText);
+            closeModal();
+        }
+
+        // 点击弹出框外部时关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('aiPolishModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
     </script>
 </body>
 </html>

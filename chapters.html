@@ -73,9 +73,9 @@
             padding: 20px;
             border: 1px solid #888;
             width: 80%;
- 
             height: 80%;
             overflow-y: auto;
+            transition: all 0.3s ease;
         }
         .modal-header {
             padding: 10px;
@@ -87,13 +87,7 @@
             justify-content: space-between;
             align-items: center;
         }
-        .close {
-            color: #aaa;
-            font-size: 28px;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-        .maximize {
+        .close, .maximize, .minimize {
             color: #aaa;
             font-size: 24px;
             font-weight: bold;
@@ -101,6 +95,7 @@
             margin-left: 10px;
         }
         .maximize:hover,
+        .minimize:hover,
         .close:hover,
         .close:focus {
             color: black;
@@ -111,6 +106,24 @@
             margin: 0;
             width: 100%;
             height: 100%;
+        }
+        .modal-content.minimized {
+            margin: 0;
+            position: fixed;
+            bottom: 0;
+            right: 20px;
+            width: 300px;
+            height: 40px;
+            overflow: hidden;
+        }
+        .modal-content.minimized .modal-header {
+            margin: -20px -20px 0 -20px;
+            height: 40px;
+        }
+        .modal-content.minimized textarea,
+        .modal-content.minimized button,
+        .modal-content.minimized iframe {
+            display: none;
         }
     </style>
 </head>
@@ -132,7 +145,8 @@
             <div class="modal-header">
                 <h2 id="modalTitle"></h2>
                 <div style="display: flex; align-items: center;">
-                    <span class="maximize" onclick="toggleMaximize()">&square;</span>
+                    <span class="minimize" onclick="toggleMinimize(event)">_</span>
+                    <span class="maximize" onclick="toggleMaximize(event)">&square;</span>
                     <span class="close" onclick="closeModal()">&times;</span>
                 </div>
             </div>
@@ -161,7 +175,8 @@
                     <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="addKeywordToAi()">添加关键词</button>
                 </div>
                 <div style="display: flex; align-items: center;">
-                    <span class="maximize" onclick="toggleMaximize()">&square;</span>
+                    <span class="minimize" onclick="toggleMinimize(event)">_</span>
+                    <span class="maximize" onclick="toggleMaximize(event)">&square;</span>
                     <span class="close" onclick="closeAiModal()">&times;</span>
                 </div>
             </div>
@@ -287,6 +302,9 @@
         // 关闭模态框
         function closeModal() {
             const modal = document.getElementById('myModal');
+            const modalContent = modal.querySelector('.modal-content');
+            modalContent.classList.remove('maximized', 'minimized');
+            modal.style.backgroundColor = 'rgba(0,0,0,0.4)';
             modal.style.display = 'none';
         }
 
@@ -404,6 +422,9 @@
         // 关闭AI模态框
         function closeAiModal() {
             const modal = document.getElementById('aiModal');
+            const modalContent = modal.querySelector('.modal-content');
+            modalContent.classList.remove('maximized', 'minimized');
+            modal.style.backgroundColor = 'rgba(0,0,0,0.4)';
             modal.style.display = 'none';
         }
 
@@ -479,8 +500,15 @@
         }
 
         // 切换最大化状态
-        function toggleMaximize() {
+        function toggleMaximize(event) {
             const modalContent = event.target.closest('.modal-content');
+            const modal = modalContent.parentElement;
+            
+            // 如果当前是最小化状态，先恢复正常大小
+            if (modalContent.classList.contains('minimized')) {
+                toggleMinimize(event);
+            }
+            
             modalContent.classList.toggle('maximized');
             
             // 更新最大化按钮的图标
@@ -489,6 +517,27 @@
                 maximizeBtn.innerHTML = '&#9744;'; // 显示还原图标
             } else {
                 maximizeBtn.innerHTML = '&#9633;'; // 显示最大化图标
+            }
+        }
+
+        // 切换最小化状态
+        function toggleMinimize(event) {
+            const modalContent = event.target.closest('.modal-content');
+            const modal = modalContent.parentElement;
+            
+            // 如果当前是最大化状态，先恢复正常大小
+            if (modalContent.classList.contains('maximized')) {
+                modalContent.classList.remove('maximized');
+                event.target.previousElementSibling.innerHTML = '&#9633;';
+            }
+            
+            modalContent.classList.toggle('minimized');
+            
+            // 切换蒙版显示
+            if (modalContent.classList.contains('minimized')) {
+                modal.style.backgroundColor = 'transparent';
+            } else {
+                modal.style.backgroundColor = 'rgba(0,0,0,0.4)';
             }
         }
 
