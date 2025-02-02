@@ -91,12 +91,26 @@
             color: #aaa;
             font-size: 28px;
             font-weight: bold;
+            margin-left: 10px;
         }
+        .maximize {
+            color: #aaa;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .maximize:hover,
         .close:hover,
         .close:focus {
             color: black;
             text-decoration: none;
             cursor: pointer;
+        }
+        .modal-content.maximized {
+            margin: 0;
+            width: 100%;
+            height: 100%;
         }
     </style>
 </head>
@@ -117,7 +131,10 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle"></h2>
-                <span class="close" onclick="closeModal()">&times;</span>
+                <div style="display: flex; align-items: center;">
+                    <span class="maximize" onclick="toggleMaximize()">&square;</span>
+                    <span class="close" onclick="closeModal()">&times;</span>
+                </div>
             </div>
             <textarea id="modalText" style="width: 100%; height: 80%;"></textarea>
             <button onclick="saveModalContent()">保存</button>
@@ -134,8 +151,19 @@
                     <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="loadSettingToAi('timeline')">载入时间线</button>
                     <input type="number" id="chapterInput" placeholder="输入章节号" style="width: 100px; padding: 5px;">
                     <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="loadChapterToAi()">载入章节</button>
+                    <select id="keywordSelect" style="padding: 5px;">
+                        <option value="我要写【类型】的小说，帮我构建一个世界，然后构建主要角色，然后构建章节目录，章节目录也是角色时间线。分成5卷写好每卷的剧情摘要，每卷50章，设置好第一卷50章的章节目录和一句话的剧情摘要">构建世界</option>
+                        <option value="根据我们构建的世界，帮我创作小说的第【】卷第【】章的内容，输出字数【】字">创作小说</option>
+                        <option value="世界观">世界观</option>
+                        <option value="剧情发展">剧情发展</option>
+                        <option value="人物性格">人物性格</option>
+                    </select>
+                    <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="addKeywordToAi()">添加关键词</button>
                 </div>
-                <span class="close" onclick="closeAiModal()">&times;</span>
+                <div style="display: flex; align-items: center;">
+                    <span class="maximize" onclick="toggleMaximize()">&square;</span>
+                    <span class="close" onclick="closeAiModal()">&times;</span>
+                </div>
             </div>
             <iframe id="aiFrame" src="a.html" style="width: 100%; height: 80%; border: none;"></iframe>
         </div>
@@ -432,6 +460,35 @@
             } catch (error) {
                 console.error('加载章节失败:', error);
                 alert('加载章节失败');
+            }
+        }
+
+        // 添加关键词到AI iframe
+        function addKeywordToAi() {
+            const keywordSelect = document.getElementById('keywordSelect');
+            const selectedKeyword = keywordSelect.value;
+            
+            const aiFrame = document.getElementById('aiFrame');
+            const userInput = aiFrame.contentDocument.getElementById('user-input');
+            if (userInput) {
+                userInput.value +=  selectedKeyword;
+                // 触发input事件以调整输入框高度
+                const event = new Event('input', { bubbles: true });
+                userInput.dispatchEvent(event);
+            }
+        }
+
+        // 切换最大化状态
+        function toggleMaximize() {
+            const modalContent = event.target.closest('.modal-content');
+            modalContent.classList.toggle('maximized');
+            
+            // 更新最大化按钮的图标
+            const maximizeBtn = event.target;
+            if (modalContent.classList.contains('maximized')) {
+                maximizeBtn.innerHTML = '&#9744;'; // 显示还原图标
+            } else {
+                maximizeBtn.innerHTML = '&#9633;'; // 显示最大化图标
             }
         }
 
