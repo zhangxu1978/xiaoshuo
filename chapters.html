@@ -78,7 +78,7 @@
             transition: all 0.3s ease;
         }
         .modal-header {
-            padding: 10px;
+            padding: 0px 10px 0px 10px;
             cursor: move;
             background-color: #f1f1f1;
             margin: -20px -20px 10px -20px;
@@ -553,7 +553,8 @@
             document.getElementById('addChapterBtn').onclick = async () => {
                 window.location.href = `/editor.html?bookId=${bookId}`;
             };
-
+    // 定义一个系数来加快拖动速度，这里设置为 2，你可以根据需要调整
+   // const speedFactor = 5; 
             // 拖动模态框
             interact('.modal-content')
                 .draggable({

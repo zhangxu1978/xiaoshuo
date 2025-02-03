@@ -84,7 +84,6 @@
     width: 100%;
     height: 200px;
     margin: 10px 0;
-    padding: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
     resize: vertical;
@@ -134,7 +133,7 @@
         <!-- 添加弹出框 -->
         <div id="aiPolishModal" class="modal">
             <div class="modal-content">
-                <h2>AI润色</h2>
+                <h2 style="margin:auto">AI润色</h2>
                 <textarea id="selectedText" placeholder="在这里输入需要润色的文字"></textarea>
                 <div class="modal-buttons">
                     <button class="modal-btn cancel" onclick="closeModal()">取消</button>
@@ -234,12 +233,21 @@
         });
 
         // 添加AI润色相关函数
+        let originalText = '';
+        let selectionStart = 0;
+        let selectionEnd = 0;
+
         function handleAiPolish() {
-            const selectedText = window.getSelection().toString().trim();
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
             const modal = document.getElementById('aiPolishModal');
             const textArea = document.getElementById('selectedText');
             
             if (selectedText) {
+                originalText = selectedText;
+                const range = selection.getRangeAt(0);
+                selectionStart = range.startOffset;
+                selectionEnd = range.endOffset;
                 textArea.value = selectedText;
                 modal.style.display = 'block';
             } else {
@@ -252,10 +260,43 @@
             modal.style.display = 'none';
         }
 
-        function submitAiPolish() {
-            const selectedText = document.getElementById('selectedText').value;
-            // TODO: 这里添加调用AI润色API的逻辑
-            console.log('提交润色的文字:', selectedText);
+        async function submitAiPolish() {
+            const polishedText = document.getElementById('selectedText').value;
+            const contentElement = document.getElementById('chapterContent');
+            const currentContent = contentElement.textContent;
+            
+            // 替换内容
+            const newContent = currentContent.substring(0, selectionStart) + 
+                             polishedText + 
+                             currentContent.substring(selectionEnd);
+            
+            // 更新显示
+            contentElement.textContent = newContent;
+
+            // 保存更新到服务器
+            try {
+                const response = await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: document.getElementById('chapterTitle').textContent,
+                        content: newContent
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('更新成功');
+                } else {
+                    alert('更新失败：' + result.message);
+                }
+            } catch (error) {
+                console.error('保存更新失败:', error);
+                alert('保存更新失败，请重试');
+            }
+
             closeModal();
         }
 
