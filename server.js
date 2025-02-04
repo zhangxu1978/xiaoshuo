@@ -4,8 +4,25 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const ngrok = require('ngrok');
+const OpenAI = require('openai');
 const app = express();
 const port = 8090;
+
+// DeepSeek 模型配置
+const deepseekConfig = {
+    title: "DeepSeek V2.5",
+    model: "deepseek-ai/DeepSeek-V2.5",
+    contextLength: 128000,
+    apiBase: "https://api.siliconflow.cn/v1",
+    apiKey: "sk-oxndvuljdpkxtoklbibzjharjcrlglxqstrectxsxgkmbagt", // 需要替换为实际的 API key
+    provider: "openaiCompatible"
+};
+
+// 初始化 OpenAI 客户端
+const openai = new OpenAI({
+    apiKey: deepseekConfig.apiKey,
+    baseURL: deepseekConfig.apiBase
+});
 
 app.use(express.static(path.join(__dirname)));
 app.use(bodyParser.json());
@@ -141,7 +158,7 @@ app.post('/api/books', (req, res) => {
     const newBook = {
         id: books.length + 1,
         title,
-        author: 'test_user', // 实际应该从session获取
+        author: zhangxu, // 实际应该从session获取
         chapters: []
     };
     books.push(newBook);
@@ -383,6 +400,62 @@ app.post('/api/generate-static', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             message: '生成静态页面失败: ' + error.message 
+        });
+    }
+});
+
+// DeepSeek API 调用接口
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { messages } = req.body;
+        const temperature = req.body.temperature || 0.7;
+        const top_p = req.body.top_p || 0.9;
+        const max_tokens = req.body.max_tokens || 8000;
+        const top_k = req.body.top_k || 50;
+        const frequency_penalty = req.body.frequency_penalty || 0;
+        const presence_penalty = req.body.presence_penalty || 0;
+        const model = req.body.model || deepseekConfig.model;
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+            throw new Error('无效的消息格式');
+        }
+
+        // 将消息格式转换为 DeepSeek 所需的格式
+        const formattedMessages = messages.map(msg => ({
+            role: msg.role,
+            content: [{
+                type: "text",
+                text: msg.content
+            }]
+        }));
+
+        const response = await openai.chat.completions.create({
+            model: model,
+            messages: formattedMessages,
+            temperature: temperature,
+            top_p: top_p,
+            max_tokens: max_tokens,
+            top_k: top_k,
+            frequency_penalty: frequency_penalty,
+            presence_penalty: presence_penalty,
+            stream: false
+        });
+        console.log(response);
+        res.json(response);
+
+    } catch (error) {
+        console.error('调用 AI 模型失败:', {
+            message: error.message,
+            stack: error.stack
+        });
+        
+        res.status(500).json({
+            success: false,
+            error: {
+                message: error.message,
+                type: error.type,
+                code: error.code,
+                details: error.response?.data || '未知错误'
+            }
         });
     }
 });

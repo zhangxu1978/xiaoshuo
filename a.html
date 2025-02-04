@@ -397,14 +397,14 @@
                     return null;
             }
             } else if (modelType === 'deepseek') {
-                const url = 'https://api.deepseek.com/v1/chat/completions';
+                const url = 'https://api.siliconflow.cn/v1/chat/completions';
                 const headers = {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer sk-sGBjsnvA1a9hEBfJDb73F738584a4413B652F79c2eFaF338',
+                    'Authorization': 'Bearer sk-oxndvuljdpkxtoklbibzjharjcrlglxqstrectxsxgkmbagt',
                 };
                 
                 const data = {
-                    "model": "deepseek/deepseek-r1:free",
+                    "model": "deepseek-ai/DeepSeek-V2.5",
                     "messages": conversationHistory.concat([{
                         "role": "user",
                         "content": [{

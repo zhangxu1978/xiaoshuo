@@ -17,6 +17,7 @@
     "express": "^4.18.2",
     "express-session": "^1.18.1",
     "login-app": "file:",
-    "ngrok": "^5.0.0-beta.2"
+    "ngrok": "^5.0.0-beta.2",
+    "openai": "^4.82.0"
   }
 }

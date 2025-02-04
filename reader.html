@@ -72,33 +72,78 @@
 
 .modal-content {
     background-color: #fefefe;
-    margin: 15% auto;
+    margin: 5% auto;
     padding: 20px;
     border: 1px solid #888;
     width: 80%;
     max-width: 600px;
     border-radius: 5px;
+    position: relative;
+    transition: all 0.3s ease;
+    cursor: move;
+}
+
+.modal-content.maximized {
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
 }
 
 .modal textarea {
-    width: 100%;
+    width: 95%;
     height: 200px;
     margin: 10px 0;
     border: 1px solid #ddd;
     border-radius: 4px;
     resize: vertical;
+    padding: 10px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.modal-content.maximized textarea {
+    height: calc(100vh - 200px);
 }
 
 .modal-buttons {
     text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+#keywordSelect, #modelSelect {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
 }
 
 .modal-btn {
     padding: 8px 16px;
-    margin-left: 10px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.modal-btn:hover {
+    opacity: 0.9;
+}
+
+.modal-btn.addText {
+    background-color: #2196F3;
+    color: white;
+}
+
+.modal-btn.getText {
+    background-color: #4CAF50;
+    color: white;
 }
 
 .modal-btn.confirm {
@@ -109,6 +154,49 @@
 .modal-btn.cancel {
     background-color: #f44336;
     color: white;
+}
+
+.maximize-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #666;
+}
+
+.loading-spinner {
+    display: none;
+    margin: 0 auto;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.swap-btn {
+    display: block;
+    margin: 10px auto;
+    padding: 8px 16px;
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.swap-btn:hover {
+    background-color: #f57c00;
 }
     </style>
 </head>
@@ -133,9 +221,26 @@
         <!-- 添加弹出框 -->
         <div id="aiPolishModal" class="modal">
             <div class="modal-content">
-                <h2 style="margin:auto">AI润色</h2>
+                <div class="modal-buttons"></div>
+                    <select id="keywordSelect" style="padding: 5px;">
+                        <option value="不改变原有情节，不增加任何剧情、人物、伏笔。只是单纯的提升文笔，增加可读性，你输出的字数和输入的应该差不多">提升文笔</option>
+                        <option value="修订上面文字中不合理不通顺的部分，将修改后的文字返回时用【】包起来，方便比较">修改润色</option>
+                        <option value="删除章节目录合并成一章，章节结合部要进行补充和修改使其不那么突兀，修改的文字用【】包起来">章节合并</option>
+                        <option value="根据上面的内容，生成一个适合的摘要，摘要用【】包起来">生成摘要</option>
+                    </select>
+                    <button class="modal-btn addText" onclick="addText()">添加要求</button>
+                    <select id="modelSelect" style="padding: 5px;">
+                    <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
+                    <option value="deepseek-ai/DeepSeek-V2.5">deepseekV2.5</option>
+                    <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
+                    </select>
+                    <button class="modal-btn getText" onclick="getText()">获取润色</button>
+                <button class="maximize-btn" onclick="toggleMaximize()">⛶</button>
                 <textarea id="selectedText" placeholder="在这里输入需要润色的文字"></textarea>
-                <div class="modal-buttons">
+                <button class="swap-btn" onclick="swapTexts()">↑↓ 交换文本</button>
+                <textarea id="getText" placeholder="这里将显示润色后的文字"></textarea>
+                <div class="loading-spinner" id="loadingSpinner"></div>
+              
                     <button class="modal-btn cancel" onclick="closeModal()">取消</button>
                     <button class="modal-btn confirm" onclick="submitAiPolish()">确定</button>
                 </div>
@@ -230,6 +335,18 @@
             document.getElementById('editButton').onclick = () => {
                 window.location.href = `/editor.html?bookId=${bookId}&chapterId=${chapterId}`;
             };
+
+            // 添加拖动事件监听
+            const modal = document.getElementById('aiPolishModal');
+            const modalContent = modal.querySelector('.modal-content');
+
+            modalContent.addEventListener('mousedown', dragStart, false);
+            document.addEventListener('mousemove', drag, false);
+            document.addEventListener('mouseup', dragEnd, false);
+
+            modalContent.addEventListener('touchstart', dragStart, false);
+            document.addEventListener('touchmove', drag, false);
+            document.addEventListener('touchend', dragEnd, false);
         });
 
         // 添加AI润色相关函数
@@ -242,6 +359,9 @@
             const selectedText = selection.toString().trim();
             const modal = document.getElementById('aiPolishModal');
             const textArea = document.getElementById('selectedText');
+            const textG = document.getElementById('getText');
+            // 清空之前的内容
+            textG.value = '' ;
             
             if (selectedText) {
                 originalText = selectedText;
@@ -300,12 +420,134 @@
             closeModal();
         }
 
-        // 点击弹出框外部时关闭
-        window.onclick = function(event) {
-            const modal = document.getElementById('aiPolishModal');
-            if (event.target == modal) {
-                closeModal();
+        function toggleMaximize() {
+            const modalContent = document.querySelector('.modal-content');
+            modalContent.classList.toggle('maximized');
+            const maxBtn = document.querySelector('.maximize-btn');
+            maxBtn.textContent = modalContent.classList.contains('maximized') ? '⛶' : '⛶';
+        }
+
+        function addText() {
+            const keywordSelect = document.getElementById('keywordSelect');
+            const selectedText = document.getElementById('selectedText');
+            const selectedValue = keywordSelect.value;
+            
+            // 在文本末尾添加换行和选中的要求
+            selectedText.value = selectedText.value + '\n\n要求：' + selectedValue;
+        }
+
+        async function getText() {
+            const selectedText = document.getElementById('selectedText').value;
+            const modelSelect = document.getElementById('modelSelect');
+            const selectedModel = modelSelect.value;
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const getTextArea = document.getElementById('getText');
+
+            if (!selectedText.trim()) {
+                alert('请输入需要润色的文字');
+                return;
             }
+
+            try {
+                loadingSpinner.style.display = 'block';
+                getTextArea.value = '正在处理中...';
+
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: "system",
+                                content: "你是一个专业的小说编辑，擅长对文字进行润色和修改。"
+                            },
+                            {
+                                role: "user",
+                                content: selectedText
+                            }
+                        ],
+                        model: selectedModel,
+                        temperature: 0.7,
+                        top_p: 0.9,
+                        max_tokens: 8000
+                    })
+                });
+
+                const result = await response.json();
+                if (result.choices && result.choices[0]) {
+                    getTextArea.value = result.choices[0].message.content;
+                } else {
+                    getTextArea.value = '处理失败：未获取到有效响应';
+                }
+            } catch (error) {
+                console.error('AI润色请求失败:', error);
+                getTextArea.value = '处理失败，请重试';
+            } finally {
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        // 添加拖动相关代码
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        function dragStart(e) {
+            if (e.type === "touchstart") {
+                initialX = e.touches[0].clientX - xOffset;
+                initialY = e.touches[0].clientY - yOffset;
+            } else {
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+            }
+
+            if (e.target.classList.contains('modal-content')) {
+                isDragging = true;
+            }
+        }
+
+        function dragEnd(e) {
+            initialX = currentX;
+            initialY = currentY;
+            isDragging = false;
+        }
+
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                
+                if (e.type === "touchmove") {
+                    currentX = e.touches[0].clientX - initialX;
+                    currentY = e.touches[0].clientY - initialY;
+                } else {
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+                }
+
+                xOffset = currentX;
+                yOffset = currentY;
+
+                setTranslate(currentX, currentY, document.querySelector('.modal-content'));
+            }
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+        }
+
+        // 添加交换文本的函数
+        function swapTexts() {
+            const textArea1 = document.getElementById('selectedText');
+            const textArea2 = document.getElementById('getText');
+            const temp = textArea1.value;
+            textArea1.value = textArea2.value;
+            textArea2.value = temp;
         }
     </script>
 </body>
