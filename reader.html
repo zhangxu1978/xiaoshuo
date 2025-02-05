@@ -206,6 +206,7 @@
             <div style="display: flex; gap: 10px;">
                 <button class="nav-btn" onclick="window.location.href='/chapters.html?bookId=' + bookId">返回目录</button>
                 <button class="nav-btn" onclick="handleAiPolish()">AI润色</button>
+                <span class="nav-btn" id="wordCount" style="background-color: #666;">字数：0</span>
             </div>
             <div>
                 <button class="nav-btn" id="prevChapter">上一章</button>
@@ -288,6 +289,13 @@
             }
         }
 
+        // 计算字数的函数
+        function updateWordCount() {
+            const content = document.getElementById('chapterContent').textContent;
+            const count = content.replace(/\s/g, '').length;
+            document.getElementById('wordCount').textContent = `字数：${count}`;
+        }
+
         // 加载章节内容
         async function loadChapter() {
             try {
@@ -296,6 +304,9 @@
                 
                 document.getElementById('chapterTitle').textContent = chapter.title;
                 document.getElementById('chapterContent').textContent = chapter.content;
+                
+                // 更新字数统计
+                updateWordCount();
                 
                 // 添加调试日志
                 console.log('章节信息:', chapter);
@@ -408,7 +419,7 @@
 
                 const result = await response.json();
                 if (result.success) {
-                    alert('更新成功');
+                    //alert('更新成功');
                 } else {
                     alert('更新失败：' + result.message);
                 }
