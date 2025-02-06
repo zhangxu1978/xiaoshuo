@@ -8,6 +8,17 @@ const OpenAI = require('openai');
 const app = express();
 const port = 8090;
 
+// 确保必要的目录存在
+const settingsDir = path.join(__dirname, 'settings');
+try {
+    if (!fs.existsSync(settingsDir)) {
+        fs.mkdirSync(settingsDir, { recursive: true });
+        console.log('创建settings目录成功:', settingsDir);
+    }
+} catch (error) {
+    console.error('创建settings目录失败:', error);
+}
+
 // DeepSeek 模型配置
 const deepseekConfig = {
     title: "DeepSeek V2.5",
@@ -188,16 +199,31 @@ app.listen(port, async () => {
 // 读取章节数据
 function readChapters(bookId) {
     try {
-        const data = fs.readFileSync(path.join(__dirname, `chapters_${bookId}.json`));
+        const filePath = path.join(__dirname, `chapters_${bookId}.json`);
+        console.log('尝试读取章节数据从:', filePath);
+        if (!fs.existsSync(filePath)) {
+            console.log('章节文件不存在:', filePath);
+            return [];
+        }
+        const data = fs.readFileSync(filePath, 'utf8');
         return JSON.parse(data);
     } catch (error) {
+        console.error('读取章节数据失败:', error);
         return [];
     }
 }
 
 // 保存章节数据
 function saveChapters(bookId, chapters) {
-    fs.writeFileSync(path.join(__dirname, `chapters_${bookId}.json`), JSON.stringify(chapters, null, 4));
+    try {
+        const filePath = path.join(__dirname, `chapters_${bookId}.json`);
+        console.log('保存章节数据到:', filePath);
+        fs.writeFileSync(filePath, JSON.stringify(chapters, null, 2), 'utf8');
+        console.log('章节数据保存成功');
+    } catch (error) {
+        console.error('保存章节数据失败:', error);
+        throw error;
+    }
 }
 
 // 获取书籍的所有章节
@@ -313,6 +339,56 @@ app.post('/api/settings/:type', (req, res) => {
     const data = req.body.value;
     saveSetting(type, bookId, data);
     res.json({ success: true, message: `${type} 保存成功` });
+});
+
+// 保存章节设定
+app.post('/api/chapter-settings', (req, res) => {
+    const { bookId, chapterId, title, type, status, summary } = req.body;
+    
+    try {
+        // 转换ID为数字类型
+        const numericBookId = parseInt(bookId);
+        const numericChapterId = parseInt(chapterId);
+        
+        if (isNaN(numericBookId) || isNaN(numericChapterId)) {
+            throw new Error('无效的书籍ID或章节ID');
+        }
+
+        // 更新章节数据
+        const chapters = readChapters(numericBookId);
+        console.log('读取到的章节数据:', chapters);
+        
+        const chapterIndex = chapters.findIndex(c => c.id === numericChapterId);
+        console.log('查找章节索引:', chapterIndex, '章节ID:', numericChapterId);
+        
+        if (chapterIndex === -1) {
+            throw new Error(`找不到章节(ID: ${numericChapterId})`);
+        }
+        
+        // 更新章节标题
+        chapters[chapterIndex].title = title;
+        saveChapters(numericBookId, chapters);
+        
+        // 保存章节设定
+        const settings = {
+            type,
+            status,
+            summary,
+            updateTime: new Date().toISOString()
+        };
+        saveChapterSettings(numericBookId, numericChapterId, settings);
+        
+        res.json({
+            success: true,
+            message: '章节设定保存成功'
+        });
+    } catch (error) {
+        console.error('保存章节设定失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '保存章节设定失败: ' + error.message
+        });
+    }
 });
 
 // 生成静态页面
@@ -456,6 +532,106 @@ app.post('/api/chat', async (req, res) => {
                 code: error.code,
                 details: error.response?.data || '未知错误'
             }
+        });
+    }
+});
+
+// 读取章节设定
+function readChapterSettings(bookId, chapterId) {
+    try {
+        // 使用绝对路径
+        const filePath = path.resolve(__dirname, 'settings', `chapter_settings_${bookId}_${chapterId}.json`);
+        console.log('尝试读取章节设定从:', filePath);
+        
+        if (!fs.existsSync(filePath)) {
+            console.log('文件不存在，返回默认设定');
+            return {
+                type: 'normal',
+                status: 'draft',
+                summary: ''
+            };
+        }
+        const data = fs.readFileSync(filePath, 'utf8');
+        return JSON.parse(data);
+    } catch (error) {
+        console.error('读取章节设定失败:', error);
+        return {
+            type: 'normal',
+            status: 'draft',
+            summary: ''
+        };
+    }
+}
+
+// 保存章节设定
+function saveChapterSettings(bookId, chapterId, data) {
+    try {
+        // 使用绝对路径
+        const settingsDir = path.resolve(__dirname, 'settings');
+        if (!fs.existsSync(settingsDir)) {
+            fs.mkdirSync(settingsDir, { recursive: true });
+            console.log('创建settings目录成功:', settingsDir);
+        }
+
+        // 构建文件路径
+        const filePath = path.join(settingsDir, `chapter_settings_${bookId}_${chapterId}.json`);
+        console.log('准备保存章节设定到:', filePath);
+        
+        // 保存文件
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        console.log(`成功保存章节设定到: ${filePath}`);
+        
+        // 验证文件是否成功创建
+        if (fs.existsSync(filePath)) {
+            console.log('文件创建成功，可以在以下位置找到:', filePath);
+        } else {
+            throw new Error('文件创建失败');
+        }
+    } catch (error) {
+        console.error('保存章节设定失败:', error);
+        throw error;
+    }
+}
+
+// 获取章节概要API
+app.get('/api/chapter-summary', (req, res) => {
+    const { bookId, chapterId } = req.query;
+    try {
+        const settings = readChapterSettings(bookId, chapterId);
+        res.json({
+            success: true,
+            summary: settings.summary || ''
+        });
+    } catch (error) {
+        console.error('获取章节概要失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取章节概要失败: ' + error.message
+        });
+    }
+});
+
+// 获取章节设定API
+app.get('/api/chapter-settings', (req, res) => {
+    const { bookId, chapterId } = req.query;
+    try {
+        const numericBookId = parseInt(bookId);
+        const numericChapterId = parseInt(chapterId);
+        
+        if (isNaN(numericBookId) || isNaN(numericChapterId)) {
+            throw new Error('无效的书籍ID或章节ID');
+        }
+
+        const settings = readChapterSettings(numericBookId, numericChapterId);
+        res.json({
+            success: true,
+            settings: settings
+        });
+    } catch (error) {
+        console.error('获取章节设定失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取章节设定失败: ' + error.message
         });
     }
 });

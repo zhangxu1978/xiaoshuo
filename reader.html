@@ -207,6 +207,7 @@
                 <button class="nav-btn" onclick="window.location.href='/chapters.html?bookId=' + bookId">返回目录</button>
                 <button class="nav-btn" onclick="handleAiPolish()">AI润色</button>
                 <span class="nav-btn" id="wordCount" style="background-color: #666;">字数：0</span>
+                <button class="nav-btn" onclick="showChapterSettings()" style="background-color: #9c27b0;">章节设定</button>
             </div>
             <div>
                 <button class="nav-btn" id="prevChapter">上一章</button>
@@ -232,7 +233,7 @@
                     <button class="modal-btn addText" onclick="addText()">添加要求</button>
                     <select id="modelSelect" style="padding: 5px;">
                     <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
-                    <option value="deepseek-ai/DeepSeek-V2.5">deepseekV2.5</option>
+                    <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
                     <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
                     </select>
                     <button class="modal-btn getText" onclick="getText()">获取润色</button>
@@ -244,6 +245,55 @@
               
                     <button class="modal-btn cancel" onclick="closeModal()">取消</button>
                     <button class="modal-btn confirm" onclick="submitAiPolish()">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 章节设定弹窗 -->
+    <div id="chapterSettingsModal" class="modal">
+        <div class="modal-content">
+            <h2>章节设定</h2>
+            <div class="modal-buttons">
+                <button class="modal-btn confirm" onclick="saveChapterSettings()">保存</button>
+                <button class="modal-btn cancel" onclick="closeChapterSettings()">取消</button>
+            </div>
+            <div class="settings-container">
+                <div class="setting-item">
+                    <label>章节标题:</label>
+                    <input type="text" id="chapterTitleInput" />
+                </div>
+                <div class="setting-item">
+                    <label>章节类型:</label>
+                    <select id="chapterTypeSelect">
+                        <option value="normal">普通章节</option>
+                        <option value="prologue">序章</option>
+                        <option value="epilogue">尾声</option>
+                        <option value="interlude">间章</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>章节状态:</label>
+                    <select id="chapterStatusSelect">
+                        <option value="draft">草稿</option>
+                        <option value="published">已发布</option>
+                        <option value="hidden">隐藏</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>AI摘要生成:</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <select id="summaryModelSelect" style="flex: 1;">
+                            <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
+                            <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
+                            <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
+                        </select>
+                        <button class="modal-btn" onclick="generateChapterSummary()" style="background-color: #2196F3; color: white;">获取摘要</button>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label>章节概要:</label>
+                    <textarea id="chapterSummaryInput" style="width: 100%; height: 100px; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
                 </div>
             </div>
         </div>
@@ -559,6 +609,149 @@
             const temp = textArea1.value;
             textArea1.value = textArea2.value;
             textArea2.value = temp;
+        }
+
+        // 保存章节设定
+        async function saveChapterSettings() {
+            const title = document.getElementById('chapterTitleInput').value;
+            const type = document.getElementById('chapterTypeSelect').value;
+            const status = document.getElementById('chapterStatusSelect').value;
+            const summary = document.getElementById('chapterSummaryInput').value;
+            
+            if (!title.trim()) {
+                alert('章节标题不能为空');
+                return;
+            }
+
+            console.log('准备保存章节设定:', {
+                bookId,
+                chapterId,
+                title,
+                type,
+                status,
+                summary
+            });
+            
+            try {
+                const response = await fetch('/api/chapter-settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bookId: parseInt(bookId),
+                        chapterId: parseInt(chapterId),
+                        title,
+                        type,
+                        status,
+                        summary
+                    })
+                });
+                
+                const result = await response.json();
+                console.log('保存结果:', result);
+                
+                if (result.success) {
+                    // 更新页面显示
+                    document.getElementById('chapterTitle').textContent = title;
+                    closeChapterSettings();
+                    alert('保存成功');
+                    
+                    // 刷新章节设定
+                    await loadChapterSettings();
+                } else {
+                    console.error('保存失败:', result.message);
+                    alert('保存失败：' + result.message);
+                }
+            } catch (error) {
+                console.error('保存章节设定失败:', error);
+                alert('保存失败，请重试。错误: ' + error.message);
+            }
+        }
+
+        // 加载章节设定
+        async function loadChapterSettings() {
+            try {
+                const response = await fetch(`/api/chapter-settings?bookId=${bookId}&chapterId=${chapterId}`);
+                const data = await response.json();
+                console.log('加载到的章节设定:', data);
+                
+                if (data.success && data.settings) {
+                    const settings = data.settings;
+                    // 填充表单
+                    document.getElementById('chapterTitleInput').value = document.getElementById('chapterTitle').textContent;
+                    document.getElementById('chapterTypeSelect').value = settings.type || 'normal';
+                    document.getElementById('chapterStatusSelect').value = settings.status || 'draft';
+                    document.getElementById('chapterSummaryInput').value = settings.summary || '';
+                } else {
+                    console.error('获取章节设定失败:', data.message);
+                }
+            } catch (error) {
+                console.error('加载章节设定失败:', error);
+            }
+        }
+
+        // 显示章节设定弹窗
+        async function showChapterSettings() {
+            const modal = document.getElementById('chapterSettingsModal');
+            modal.style.display = 'block';
+            await loadChapterSettings();
+        }
+
+        // 关闭章节设定弹窗
+        function closeChapterSettings() {
+            const modal = document.getElementById('chapterSettingsModal');
+            modal.style.display = 'none';
+        }
+
+        // 添加生成章节摘要的函数
+        async function generateChapterSummary() {
+            const chapterContent = document.getElementById('chapterContent').textContent;
+            const modelSelect = document.getElementById('summaryModelSelect');
+            const selectedModel = modelSelect.value;
+            const summaryInput = document.getElementById('chapterSummaryInput');
+            
+            if (!chapterContent.trim()) {
+                alert('章节内容为空，无法生成摘要');
+                return;
+            }
+
+            try {
+                summaryInput.value = '正在生成摘要...';
+                
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: "system",
+                                content: "你是一个专业的小说编辑，请对下面的章节内容进行全面的总结分析。请包含以下方面：\n1. 时间和地点\n2. 出场人物及其关键行为\n3. 故事情节摘要\n4. 重要的伏笔和隐喻（如果有）\n5. 本章节对整体故事的推动作用\n\n请用简洁清晰的语言进行总结。"
+                            },
+                            {
+                                role: "user",
+                                content: chapterContent
+                            }
+                        ],
+                        model: selectedModel,
+                        temperature: 0.7,
+                        top_p: 0.9,
+                        max_tokens: 8000
+                    })
+                });
+
+                const result = await response.json();
+                if (result.choices && result.choices[0]) {
+                    summaryInput.value = result.choices[0].message.content;
+                } else {
+                    summaryInput.value = '生成摘要失败：未获取到有效响应';
+                }
+            } catch (error) {
+                console.error('生成摘要失败:', error);
+                summaryInput.value = '生成摘要失败，请重试';
+            }
         }
     </script>
 </body>
