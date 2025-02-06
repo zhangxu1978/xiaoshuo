@@ -5,6 +5,13 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const ngrok = require('ngrok');
 const OpenAI = require('openai');
+const fetch = require('node-fetch');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// 设置全局代理
+process.env.http_proxy = 'http://127.0.0.1:7890';
+process.env.https_proxy = 'http://127.0.0.1:7890';
+
 const app = express();
 const port = 8090;
 
@@ -22,10 +29,10 @@ try {
 // DeepSeek 模型配置
 const deepseekConfig = {
     title: "DeepSeek V3",
-    model: "deepseek-ai/DeepSeek-V3",
+    model: "deepseek-coder-33b-instruct",
     contextLength: 64000,
-    apiBase: "https://api.siliconflow.cn/v1",
-    apiKey: "sk-oxndvuljdpkxtoklbibzjharjcrlglxqstrectxsxgkmbagt", // 需要替换为实际的 API key
+    apiBase: "https://api.deepseek.com/v1",
+    apiKey: "YOUR_DEEPSEEK_API_KEY", // 请替换为您的 DeepSeek API Key
     provider: "openaiCompatible"
 };
 
@@ -33,6 +40,20 @@ const deepseekConfig = {
 const openai = new OpenAI({
     apiKey: deepseekConfig.apiKey,
     baseURL: deepseekConfig.apiBase
+});
+
+// 初始化Google AI客户端
+const genAI = new GoogleGenerativeAI("AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI"); // 请替换为您的 Google AI API Key
+const googleModel = genAI.getGenerativeModel({ 
+    model: "gemini-pro", // 使用更稳定的模型
+    // 添加安全超时设置
+    timeout: 30000, // 30秒超时
+    retry: {
+        retries: 3,
+        factor: 2,
+        minTimeout: 1000,
+        maxTimeout: 5000
+    }
 });
 
 app.use(express.static(path.join(__dirname)));
@@ -541,50 +562,92 @@ app.post('/api/chat', async (req, res) => {
         const temperature = req.body.temperature || 0.7;
         const top_p = req.body.top_p || 0.9;
         const max_tokens = req.body.max_tokens || 8000;
-        const top_k = req.body.top_k || 50;
-        const frequency_penalty = req.body.frequency_penalty || 0;
-        const presence_penalty = req.body.presence_penalty || 0;
         const model = req.body.model || deepseekConfig.model;
+
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
-            throw new Error('无效的消息格式');
+            return res.status(400).json({
+                success: false,
+                error: {
+                    message: '无效的消息格式'
+                }
+            });
         }
 
-        // 将消息格式转换为 DeepSeek 所需的格式
-        const formattedMessages = messages.map(msg => ({
-            role: msg.role,
-            content: [{
-                type: "text",
-                text: msg.content
-            }]
-        }));
+        let response;
+        let error = null;
+        
+        // 首先尝试使用指定的模型
+        try {
+            if (model === 'google-ai') {
+                // Google AI 处理逻辑
+                const formattedMessages = messages.map(msg => ({
+                    role: msg.role === "user" ? "user" : "model",
+                    parts: [{ text: msg.content }]
+                }));
 
-        const response = await openai.chat.completions.create({
-            model: model,
-            messages: formattedMessages,
-            temperature: temperature,
-            top_p: top_p,
-            max_tokens: max_tokens,
-            top_k: top_k,
-            frequency_penalty: frequency_penalty,
-            presence_penalty: presence_penalty,
-            stream: false
-        });
-        console.log(response);
+                if (formattedMessages[0].role !== "user") {
+                    formattedMessages.unshift({
+                        role: "user",
+                        parts: [{ text: "开始对话" }]
+                    });
+                }
+
+                const chat = googleModel.startChat({
+                    history: formattedMessages.slice(0, -1)
+                });
+
+                const lastMessage = messages[messages.length - 1];
+                const result = await chat.sendMessage(lastMessage.content);
+                const responseText = result.response.text();
+
+                response = {
+                    choices: [{
+                        message: {
+                            content: responseText
+                        }
+                    }]
+                };
+            } else {
+                // DeepSeek 处理逻辑
+                const formattedMessages = messages.map(msg => ({
+                    role: msg.role === 'user' ? 'user' : 'assistant',
+                    content: msg.content
+                }));
+
+                response = await openai.chat.completions.create({
+                    model: deepseekConfig.model,
+                    messages: formattedMessages,
+                    temperature,
+                    max_tokens,
+                    top_p,
+                    stream: false
+                });
+            }
+        } catch (e) {
+            error = e;
+            console.error(`${model} API调用失败:`, e);
+        }
+
+
+
+        if (!response || !response.choices || !response.choices[0]) {
+            return res.status(500).json({
+                success: false,
+                error: {
+                    message: '无效的API响应格式'
+                }
+            });
+        }
+
         res.json(response);
 
     } catch (error) {
-        console.error('调用 AI 模型失败:', {
-            message: error.message,
-            stack: error.stack
-        });
-        
+        console.error('处理请求时发生错误:', error);
         res.status(500).json({
             success: false,
             error: {
-                message: error.message,
-                type: error.type,
-                code: error.code,
-                details: error.response?.data || '未知错误'
+                message: '服务器内部错误',
+                details: error.message
             }
         });
     }
