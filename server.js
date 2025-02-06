@@ -21,9 +21,9 @@ try {
 
 // DeepSeek 模型配置
 const deepseekConfig = {
-    title: "DeepSeek V2.5",
-    model: "deepseek-ai/DeepSeek-V2.5",
-    contextLength: 128000,
+    title: "DeepSeek V3",
+    model: "deepseek-ai/DeepSeek-V3",
+    contextLength: 64000,
     apiBase: "https://api.siliconflow.cn/v1",
     apiKey: "sk-oxndvuljdpkxtoklbibzjharjcrlglxqstrectxsxgkmbagt", // 需要替换为实际的 API key
     provider: "openaiCompatible"

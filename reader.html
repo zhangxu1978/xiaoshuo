@@ -205,10 +205,12 @@
         <div class="navigation">
             <div style="display: flex; gap: 10px;">
                 <button class="nav-btn" onclick="window.location.href='/chapters.html?bookId=' + bookId">返回目录</button>
-                <button class="nav-btn" onclick="handleAiPolish()">AI润色</button>
                 <span class="nav-btn" id="wordCount" style="background-color: #666;">字数：0</span>
+                <button class="nav-btn" onclick="handleAiPolish()">AI润色</button>
                 <button class="nav-btn" onclick="showChapterSettings()" style="background-color: #9c27b0;">章节设定</button>
                 <button class="nav-btn" onclick="showReconstructChapter()" style="background-color: #ff5722;">重构本章</button>
+                <button class="nav-btn" onclick="saveChapterCopy()" style="background-color: #2196F3;">保存副本</button>
+                <button class="nav-btn" onclick="showChapterCopy()" style="background-color: #4CAF50;">打开副本</button>
             </div>
             <div>
                 <button class="nav-btn" id="prevChapter">上一章</button>
@@ -342,6 +344,22 @@
                 <div class="loading-spinner" id="reconstructSpinner" style="margin-right: 10px;"></div>
                 <button class="modal-btn cancel" style="padding: 10px 25px; font-size: 16px;" onclick="closeReconstructModal()">取消</button>
                 <button class="modal-btn confirm" style="padding: 10px 25px; font-size: 16px;" onclick="startReconstruct()">开始重构</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加副本显示弹窗 -->
+    <div id="chapterCopyModal" class="modal">
+        <div class="modal-content">
+            <h2>章节副本</h2>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closeChapterCopy()">关闭</button>
+                <button class="modal-btn confirm" onclick="restoreFromCopy()">恢复此副本</button>
+            </div>
+            <div class="copy-container">
+                <div class="copy-content" style="margin-top: 20px; max-height: 70vh; overflow-y: auto;">
+                    <pre id="copyContent" style="white-space: pre-wrap; word-wrap: break-word; font-size: 16px; line-height: 1.6; padding: 15px; background: #f5f5f5; border-radius: 8px;"></pre>
+                </div>
             </div>
         </div>
     </div>
@@ -918,6 +936,96 @@
                 alert('重构失败，请重试');
             } finally {
                 spinner.style.display = 'none';
+            }
+        }
+
+        // 添加副本相关函数
+        async function saveChapterCopy() {
+            const content = document.getElementById('chapterContent').textContent;
+            const title = document.getElementById('chapterTitle').textContent;
+            
+            try {
+                const copyData = {
+                    title,
+                    content,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // 获取现有副本
+                let copies = JSON.parse(localStorage.getItem(`chapter_copy_${bookId}_${chapterId}`) || '[]');
+                copies.push(copyData);
+                
+                // 保存到localStorage
+                localStorage.setItem(`chapter_copy_${bookId}_${chapterId}`, JSON.stringify(copies));
+                
+                alert('副本保存成功');
+            } catch (error) {
+                console.error('保存副本失败:', error);
+                alert('保存副本失败');
+            }
+        }
+
+        function showChapterCopy() {
+            try {
+                const copies = JSON.parse(localStorage.getItem(`chapter_copy_${bookId}_${chapterId}`) || '[]');
+                
+                if (copies.length === 0) {
+                    alert('没有找到任何副本');
+                    return;
+                }
+                
+                // 显示最新的副本
+                const latestCopy = copies[copies.length - 1];
+                const modal = document.getElementById('chapterCopyModal');
+                const copyContent = document.getElementById('copyContent');
+                
+                copyContent.textContent = `标题: ${latestCopy.title}\n时间: ${new Date(latestCopy.timestamp).toLocaleString()}\n\n${latestCopy.content}`;
+                modal.style.display = 'block';
+            } catch (error) {
+                console.error('显示副本失败:', error);
+                alert('显示副本失败');
+            }
+        }
+
+        function closeChapterCopy() {
+            const modal = document.getElementById('chapterCopyModal');
+            modal.style.display = 'none';
+        }
+
+        async function restoreFromCopy() {
+            try {
+                const copies = JSON.parse(localStorage.getItem(`chapter_copy_${bookId}_${chapterId}`) || '[]');
+                if (copies.length === 0) return;
+                
+                const latestCopy = copies[copies.length - 1];
+                
+                // 更新显示
+                document.getElementById('chapterContent').textContent = latestCopy.content;
+                document.getElementById('chapterTitle').textContent = latestCopy.title;
+                
+                // 保存到服务器
+                const response = await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: latestCopy.title,
+                        content: latestCopy.content
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('已恢复到副本版本');
+                    closeChapterCopy();
+                    updateWordCount();
+                } else {
+                    alert('恢复失败：' + result.message);
+                }
+            } catch (error) {
+                console.error('恢复副本失败:', error);
+                alert('恢复副本失败');
             }
         }
     </script>
