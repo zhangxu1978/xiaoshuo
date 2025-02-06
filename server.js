@@ -200,7 +200,7 @@ app.listen(port, async () => {
 function readChapters(bookId) {
     try {
         const filePath = path.join(__dirname, `chapters_${bookId}.json`);
-        console.log('尝试读取章节数据从:', filePath);
+       // console.log('尝试读取章节数据从:', filePath);
         if (!fs.existsSync(filePath)) {
             console.log('章节文件不存在:', filePath);
             return [];
@@ -412,40 +412,94 @@ app.post('/api/generate-static', async (req, res) => {
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${chapter.title}</title>
     <style>
-        body {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
+        
+        body {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 15px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        
+        @media (min-width: 768px) {
+            body {
+                max-width: 800px;
+                padding: 20px;
+            }
+        }
+        
         .chapter-title {
             text-align: center;
             color: #333;
-            margin-bottom: 30px;
+            margin: 20px 0;
+            font-size: 1.5rem;
+            padding: 0 10px;
         }
+        
         .chapter-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             white-space: pre-wrap;
             word-wrap: break-word;
+            font-size: 1.1rem;
+            line-height: 1.8;
         }
+        
         .navigation {
             display: flex;
             justify-content: space-between;
             margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
+            padding: 15px 0;
+            gap: 10px;
+            flex-wrap: wrap;
         }
+        
         .nav-button {
-            padding: 10px 20px;
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 15px;
             background-color: #4CAF50;
             color: white;
             text-decoration: none;
             border-radius: 5px;
+            text-align: center;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+            border: none;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
         }
+        
         .nav-button:hover {
             background-color: #45a049;
+        }
+        
+        @media (max-width: 480px) {
+            .chapter-title {
+                font-size: 1.3rem;
+            }
+            
+            .chapter-content {
+                font-size: 1rem;
+                padding: 15px;
+            }
+            
+            .nav-button {
+                padding: 10px;
+                font-size: 0.85rem;
+            }
         }
     </style>
 </head>
@@ -632,6 +686,62 @@ app.get('/api/chapter-settings', (req, res) => {
         res.status(500).json({
             success: false,
             message: '获取章节设定失败: ' + error.message
+        });
+    }
+});
+
+// 获取连续章节摘要API
+app.get('/api/chapter-summaries', (req, res) => {
+    const { bookId, chapterId, prevCount, nextCount } = req.query;
+    try {
+        const numericBookId = parseInt(bookId);
+        const numericChapterId = parseInt(chapterId);
+        const numericPrevCount = parseInt(prevCount) || 0;
+        const numericNextCount = parseInt(nextCount) || 0;
+        
+        if (isNaN(numericBookId) || isNaN(numericChapterId)) {
+            throw new Error('无效的书籍ID或章节ID');
+        }
+
+        // 获取所有章节
+        const chapters = readChapters(numericBookId);
+        const currentChapterIndex = chapters.findIndex(c => c.id === numericChapterId);
+        
+        if (currentChapterIndex === -1) {
+            throw new Error('找不到当前章节');
+        }
+
+        const summaries = [];
+        
+        // 获取前面章节的摘要
+        for (let i = currentChapterIndex - numericPrevCount; i < currentChapterIndex; i++) {
+            if (i >= 0) {
+                const settings = readChapterSettings(numericBookId, chapters[i].id);
+                if (settings && settings.summary) {
+                    summaries.push(`第${chapters[i].id}章 ${chapters[i].title}：\n${settings.summary}`);
+                }
+            }
+        }
+
+        // 获取后面章节的摘要
+        for (let i = currentChapterIndex + 1; i <= currentChapterIndex + numericNextCount; i++) {
+            if (i < chapters.length) {
+                const settings = readChapterSettings(numericBookId, chapters[i].id);
+                if (settings && settings.summary) {
+                    summaries.push(`第${chapters[i].id}章 ${chapters[i].title}：\n${settings.summary}`);
+                }
+            }
+        }
+
+        res.json({
+            success: true,
+            summaries: summaries
+        });
+    } catch (error) {
+        console.error('获取连续章节摘要失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取连续章节摘要失败: ' + error.message
         });
     }
 });

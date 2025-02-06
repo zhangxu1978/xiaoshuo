@@ -3,40 +3,94 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>席纹映雪</title>
     <style>
-        body {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
+        
+        body {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 15px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        
+        @media (min-width: 768px) {
+            body {
+                max-width: 800px;
+                padding: 20px;
+            }
+        }
+        
         .chapter-title {
             text-align: center;
             color: #333;
-            margin-bottom: 30px;
+            margin: 20px 0;
+            font-size: 1.5rem;
+            padding: 0 10px;
         }
+        
         .chapter-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             white-space: pre-wrap;
             word-wrap: break-word;
+            font-size: 1.1rem;
+            line-height: 1.8;
         }
+        
         .navigation {
             display: flex;
             justify-content: space-between;
             margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
+            padding: 15px 0;
+            gap: 10px;
+            flex-wrap: wrap;
         }
+        
         .nav-button {
-            padding: 10px 20px;
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 15px;
             background-color: #4CAF50;
             color: white;
             text-decoration: none;
             border-radius: 5px;
+            text-align: center;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+            border: none;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
         }
+        
         .nav-button:hover {
             background-color: #45a049;
+        }
+        
+        @media (max-width: 480px) {
+            .chapter-title {
+                font-size: 1.3rem;
+            }
+            
+            .chapter-content {
+                font-size: 1rem;
+                padding: 15px;
+            }
+            
+            .nav-button {
+                padding: 10px;
+                font-size: 0.85rem;
+            }
         }
     </style>
 </head>
@@ -50,7 +104,7 @@
 
 腊八那日，陆怀瑾满周岁。晨光初透时，陆家院中已飘起黍糕的甜香。周氏将连夜赶制的虎头鞋套上儿子脚腕，忽然轻呼："当家的快看！"只见怀瑾攥着用作襁褓的《急就章》残页，小嘴里正咿咿呀呀吐出不成调的音节。残页上"师猛虎"三个朱笔批注的字迹，恰被朝阳镀了层金边。
 
-抓周礼摆在书院借来的柏木案上。木剑横在《论语》旁，算筹与彩缕并陈，最边上躺着周氏赶织的簇新襕衫。怀瑾在案前爬了半圈，忽然抓住那册陪他度过襁褓时光的《急就章》，咯咯笑着往嘴里送。围观的邻舍轰然叫好，老里正颤巍巍举杯："此子来日必是经世之才！"
+抓周礼摆在书院借来的柏木案上。木剑横在《论语》旁，算筹与彩缕并陈，最边上躺着周氏赶织的簇新襕衫。怀瑾在案前爬了半圈，忽然抓住那册陪他度过襁褓时光的《急就章》，咯咯笑着往嘴里送。围观的邻舍轰然叫好，里正举杯："此子来日必是经世之才！"
 
 陆文翰却望着书页上洇开的涎水出神。他想起昨日批改的课业里，王屠户家的小子把"上大人孔乙己"抄成了"上大刀孔乙己"。寒门子弟的笔墨，终究敌不过朱门酒肉，就像这册《急就章》，不过是贫家儿遮身的废纸。
 
@@ -62,7 +116,7 @@
 
 夏至前夜，陆文翰在乡塾批改课业。月光漏过茅草屋顶，在"云腾致雨"的"雨"字上凝成光斑。李记绸庄的少东家李砚秋立在廊下，青缎直裰下摆沾着泥点："学生斗胆，想借先生家藏的《急就章》摹本一观。"他袖中露出半截澄心堂纸，在蛙鸣声里泛着象牙色。
 
-怀瑾两岁生辰那日，老里正拄着枣木杖叩响柴门。竹篮里盛着新麦蒸的玉兔糕，兔眼嵌着两颗朱砂痣。"老朽昨夜观星，紫微垣东南有文曲光动。"老人枯枝般的手指拂过怀瑾头顶，"这小郎昨日是否辨出了《千字文》残页？"
+怀瑾两岁生辰那日，里正提着枣木杖叩响柴门。竹篮里搁着新麦蒸的玉兔糕，兔眼缀着两粒丹砂。"某昨夜观星，见紫微垣东南文曲光动。"中年汉子青缎长衫沾着晨露，骨节分明的手掌按在怀瑾发顶，"这小郎昨日可是辨出了《千字文》残页？"
 
 周氏织机的节奏乱了一拍。她想起前日晾晒旧书时，怀瑾摇摇晃晃从《颜氏家训》里抽出半张《千字文》，奶声奶气地念出"辰宿列张"。苇篾划破指尖，血珠滴在未完成的席面上，倒像绣了朵红梅。
 
@@ -72,7 +126,7 @@
 
 庆历八年的上元灯节，邓州城飘满糯米酒的甜香。周氏抱着怀瑾挤在猜灯谜的人堆里，小娃儿忽然指着"天地玄黄"的灯笼喊："爹爹改错字！"人群哄笑中，王屠户浑厚的嗓门炸开："陆先生家的崽子两岁就识文断字，赶明儿把我家虎妞许给他当媳妇！"
 
-春闱放榜那日，李砚秋骑着青骢马踏碎一街柳絮。马鞍旁悬着个锦盒，里头躺着块洮河绿石砚。"学生侥幸中举，特来还书。"他望着正在院中临摹《急就章》的怀瑾，忽然解下腰间羊脂玉佩，"给小师弟添个砚屏罢。"
+春闱放榜那日，李砚秋骑着青骢马踏碎一街柳絮。马鞍旁悬着个锦盒，里头躺着块洮河绿石砚。"学生特来还书。"他望着正在院中临摹《急就章》的怀瑾，忽然解下腰间羊脂玉佩，"给小师弟添个砚屏罢。"
 
 周氏连夜将玉佩当了，换回一刀剡溪藤纸。当票藏在灶王爷画像后头，被油烟熏得焦黄。怀瑾趴在新糊的窗纸上描红，歪歪扭扭的"赵钱孙李"渗过纸背，在夕阳里开成墨梅。
 
@@ -82,7 +136,7 @@
     <div class="navigation">
         <a href="index.html" class="nav-button">返回目录</a>
         <a href="chapter_1.html" class="nav-button">上一章</a>
-        
+        <a href="chapter_3.html" class="nav-button">下一章</a>
     </div>
 </body>
 </html>

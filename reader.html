@@ -208,6 +208,7 @@
                 <button class="nav-btn" onclick="handleAiPolish()">AI润色</button>
                 <span class="nav-btn" id="wordCount" style="background-color: #666;">字数：0</span>
                 <button class="nav-btn" onclick="showChapterSettings()" style="background-color: #9c27b0;">章节设定</button>
+                <button class="nav-btn" onclick="showReconstructChapter()" style="background-color: #ff5722;">重构本章</button>
             </div>
             <div>
                 <button class="nav-btn" id="prevChapter">上一章</button>
@@ -295,6 +296,52 @@
                     <label>章节概要:</label>
                     <textarea id="chapterSummaryInput" style="width: 100%; height: 100px; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 章节重构弹窗 -->
+    <div id="reconstructModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <h2 style="text-align: center; color: #333; margin-bottom: 20px; font-size: 24px;">章节重构</h2>
+            <div class="settings-container">
+                <div class="setting-item" style="display: flex; gap: 20px; align-items: center; background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="white-space: nowrap;">模型:</label>
+                        <select id="reconstructModelSelect" style="width: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                            <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
+                            <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
+                            <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="white-space: nowrap;">
+                            <input type="checkbox" id="loadWorldview" checked style="margin-right: 5px;"/>
+                            加载世界观
+                        </label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="white-space: nowrap;">章节范围:</label>
+                        <input type="number" id="prevChaptersCount" style="width: 50px; padding: 6px; border: 1px solid #ddd; border-radius: 4px;" min="0" max="10" value="3"/>
+                        <span>章前</span>
+                        <input type="number" id="nextChaptersCount" style="width: 50px; padding: 6px; border: 1px solid #ddd; border-radius: 4px;" min="0" max="10" value="0"/>
+                        <span>章后</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label style="display: block; margin-bottom: 10px; color: #333; font-weight: bold;">重构要求:</label>
+                    <textarea id="reconstructRequirements" style="width: 95%; height: 250px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; line-height: 1.6; resize: vertical; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);" placeholder="请输入重构要求，例如：
+1. 保持原有剧情框架，增加细节描写
+2. 加强人物心理活动的刻画
+3. 优化场景描写的细节
+4. 调整对话的节奏感
+..."></textarea>
+                </div>
+            </div>
+            <div class="modal-buttons" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px; align-items: center;">
+                <div class="loading-spinner" id="reconstructSpinner" style="margin-right: 10px;"></div>
+                <button class="modal-btn cancel" style="padding: 10px 25px; font-size: 16px;" onclick="closeReconstructModal()">取消</button>
+                <button class="modal-btn confirm" style="padding: 10px 25px; font-size: 16px;" onclick="startReconstruct()">开始重构</button>
             </div>
         </div>
     </div>
@@ -751,6 +798,126 @@
             } catch (error) {
                 console.error('生成摘要失败:', error);
                 summaryInput.value = '生成摘要失败，请重试';
+            }
+        }
+
+        // 显示章节重构弹窗
+        function showReconstructChapter() {
+            const modal = document.getElementById('reconstructModal');
+            modal.style.display = 'block';
+        }
+
+        // 关闭章节重构弹窗
+        function closeReconstructModal() {
+            const modal = document.getElementById('reconstructModal');
+            modal.style.display = 'none';
+        }
+
+        // 开始重构章节
+        async function startReconstruct() {
+            const modelSelect = document.getElementById('reconstructModelSelect');
+            const loadWorldview = document.getElementById('loadWorldview').checked;
+            const prevCount = parseInt(document.getElementById('prevChaptersCount').value);
+            const nextCount = parseInt(document.getElementById('nextChaptersCount').value);
+            const requirements = document.getElementById('reconstructRequirements').value;
+            const spinner = document.getElementById('reconstructSpinner');
+
+            if (!requirements.trim()) {
+                alert('请输入重构要求');
+                return;
+            }
+
+            try {
+                spinner.style.display = 'block';
+                
+                // 获取当前章节内容
+                const currentContent = document.getElementById('chapterContent').textContent;
+                
+                // 构建上下文信息
+                let context = '';
+                
+                // 如果需要加载世界观
+                if (loadWorldview) {
+                    try {
+                        const worldviewResponse = await fetch(`/api/settings/environment?bookId=${bookId}`);
+                        const worldviewData = await worldviewResponse.json();
+                        if (worldviewData.success) {
+                            context += '世界观设定：\n' + worldviewData.value + '\n\n';
+                        }
+                    } catch (error) {
+                        console.error('加载世界观失败:', error);
+                    }
+                }
+
+                // 获取前后章节摘要
+                if (prevCount > 0 || nextCount > 0) {
+                    try {
+                        const summaryResponse = await fetch(`/api/chapter-summaries?bookId=${bookId}&chapterId=${chapterId}&prevCount=${prevCount}&nextCount=${nextCount}`);
+                        const summaryData = await summaryResponse.json();
+                        if (summaryData.success) {
+                            context += '相关章节摘要：\n' + summaryData.summaries.join('\n\n') + '\n\n';
+                        }
+                    } catch (error) {
+                        console.error('加载章节摘要失败:', error);
+                    }
+                }
+
+                // 发送重构请求
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: "system",
+                                content: "你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。"
+                            },
+                            {
+                                role: "user",
+                                content: `${context}原章节内容：\n${currentContent}\n\n重构要求：\n${requirements}`
+                            }
+                        ],
+                        model: modelSelect.value,
+                        temperature: 0.7,
+                        top_p: 0.9,
+                        max_tokens: 8000
+                    })
+                });
+
+                const result = await response.json();
+                if (result.choices && result.choices[0]) {
+                    const reconstructedContent = result.choices[0].message.content;
+                    
+                    // 更新章节内容
+                    document.getElementById('chapterContent').textContent = reconstructedContent;
+                    
+                    // 保存更新到服务器
+                    await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            title: document.getElementById('chapterTitle').textContent,
+                            content: reconstructedContent
+                        })
+                    });
+
+                    alert('章节重构完成');
+                    closeReconstructModal();
+                    
+                    // 更新字数统计
+                    updateWordCount();
+                } else {
+                    alert('重构失败：未获取到有效响应');
+                }
+            } catch (error) {
+                console.error('章节重构失败:', error);
+                alert('重构失败，请重试');
+            } finally {
+                spinner.style.display = 'none';
             }
         }
     </script>
