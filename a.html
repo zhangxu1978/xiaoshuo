@@ -295,6 +295,7 @@
             <option value="gemini-2.0-flash-thinking">gemini</option>
             <option value="deepseek">deepseek</option>
             <option selected value="google-ai">谷歌 AI</option>
+            <option value="deepseek-tianyi-ai">天翼AI</option>
         </select>
         <div class="action-menu">
             <button class="action-button">⋮</button>
@@ -424,6 +425,45 @@
                     return result;
                 } catch (error) {
                     console.error('Error:', error);
+                    return null;
+                }
+            } else if (modelType === 'deepseek-tianyi-ai') {
+                // 通过后端服务器中转请求
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: "system",
+                                content: "你是一个专业的AI助手。"
+                            },
+                            ...conversationHistory,
+                            { 
+                                role: "user", 
+                                content: message 
+                            }
+                        ],
+                        model: "deepseek-tianyi-ai",
+                        temperature: 0.8,
+                        top_p: 0.8,
+                        max_tokens: 2048
+                    })
+                });
+
+                const result = await response.json();
+                if (result.choices && result.choices[0]) {
+                    return {
+                        choices: [{
+                            message: {
+                                content: result.choices[0].message.content
+                            }
+                        }]
+                    };
+                } else {
+                    console.error('天翼AI返回错误:', result.error);
                     return null;
                 }
             } else if (modelType === 'google-ai') {

@@ -150,6 +150,38 @@
                     <span class="close" onclick="closeModal()">&times;</span>
                 </div>
             </div>
+            <div id="modalControls" style="margin-bottom: 10px; display: none;">
+                <select id="modalModelSelect" style="padding: 5px; margin-right: 10px;">
+                    <option value="google-ai">谷歌AI</option>
+                    <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
+                    <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
+                    <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
+                    <option value="deepseek-tianyi-ai">天翼AI</option>
+                </select>
+                <select id="modalNovelTypeSelect" style="padding: 5px; margin-right: 10px;">
+                    <option value="玄幻">玄幻</option>
+                    <option value="仙侠">仙侠</option>
+                    <option value="科幻">科幻</option>
+                    <option value="都市">都市</option>
+                    <option value="历史">历史</option>
+                    <option value="奇幻">奇幻</option>
+                    <option value="武侠">武侠</option>
+                    <option value="游戏">游戏</option>
+                </select>
+                <button onclick="generateModalWorldView()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">获取世界观</button>
+            </div>
+            <div id="characterControls" style="margin-bottom: 10px; display: none;">
+                <select id="characterModelSelect" style="padding: 5px; margin-right: 10px;">
+                    <option value="google-ai">谷歌AI</option>
+                    <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
+                    <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
+                    <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
+                    <option value="deepseek-tianyi-ai">天翼AI</option>
+                </select>
+                <input type="checkbox" id="includeWorldView" checked style="margin-right: 5px;">
+                <label for="includeWorldView" style="margin-right: 10px;">加载世界观</label>
+                <button onclick="generateCharacters()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">构建人物及人物关系</button>
+            </div>
             <textarea id="modalText" style="width: 100%; height: 80%;"></textarea>
             <button onclick="saveModalContent()">保存</button>
         </div>
@@ -286,8 +318,15 @@
             const modal = document.getElementById('myModal');
             const modalTitle = document.getElementById('modalTitle');
             const modalText = document.getElementById('modalText');
+            const modalControls = document.getElementById('modalControls');
+            const characterControls = document.getElementById('characterControls');
             modal.style.display = 'block';
             modalTitle.textContent = type + ' 设定';
+            
+            // 根据类型显示不同的控制元素
+            modalControls.style.display = type === 'environment' ? 'block' : 'none';
+            characterControls.style.display = type === 'characters' ? 'block' : 'none';
+            
             fetch(`/api/settings/${type}?bookId=${bookId}`)
                 .then(response => response.json())
                 .then(data => {
@@ -538,6 +577,182 @@
                 modal.style.backgroundColor = 'transparent';
             } else {
                 modal.style.backgroundColor = 'rgba(0,0,0,0.4)';
+            }
+        }
+
+        // 在模态框中生成世界观
+        async function generateModalWorldView() {
+            const modelSelect = document.getElementById('modalModelSelect');
+            const novelTypeSelect = document.getElementById('modalNovelTypeSelect');
+            const selectedModel = modelSelect.value;
+            const novelType = novelTypeSelect.value;
+            const modalText = document.getElementById('modalText');
+
+            // 构建提示词
+            const prompt = `请你作为一个专业的小说策划师，为我构建一个完整的${novelType}类型小说的世界观设定。
+需要包含以下要素：
+1. 世界背景：整体世界观的基本设定，包括时代背景、空间结构等
+2. 核心法则：该世界运行的基本规则，如修炼体系、科技水平、力量体系等
+3. 主要势力：世界中的主要势力分布和特点
+4. 特殊元素：独特的物品、生物、现象等
+5. 文明特征：世界中的文明发展水平、文化特点等
+6. 冲突源：潜在的矛盾点和冲突来源
+
+请详细描述每个方面，使其既符合${novelType}小说的特点，又具有独特性和创新性。`;
+
+            try {
+                modalText.value = '正在生成世界观设定...';
+                
+                if (selectedModel === 'google-ai') {
+                    // 调用谷歌 AI API
+                    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            contents: [{
+                                role: "user",
+                                parts: [{ text: prompt }]
+                            }]
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.candidates && result.candidates[0] && result.candidates[0].content) {
+                        modalText.value = result.candidates[0].content.parts[0].text;
+                    } else {
+                        modalText.value = '生成失败：未获取到有效响应';
+                    }
+                } else {
+                    // 其他模型通过服务器处理
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: "你是一个专业的小说策划师，擅长构建各类型小说的世界观设定。"
+                                },
+                                {
+                                    role: "user",
+                                    content: prompt
+                                }
+                            ],
+                            model: selectedModel,
+                            temperature: 0.7,
+                            top_p: 0.9,
+                            max_tokens: 8000
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.choices && result.choices[0]) {
+                        modalText.value = result.choices[0].message.content;
+                    } else {
+                        modalText.value = '生成失败：未获取到有效响应';
+                    }
+                }
+            } catch (error) {
+                console.error('生成世界观失败:', error);
+                modalText.value = '生成世界观失败，请重试';
+            }
+        }
+
+        // 添加生成人物的函数
+        async function generateCharacters() {
+            const modelSelect = document.getElementById('characterModelSelect');
+            const includeWorldView = document.getElementById('includeWorldView');
+            const selectedModel = modelSelect.value;
+            const modalText = document.getElementById('modalText');
+            let worldViewContent = '';
+
+            if (includeWorldView.checked) {
+                try {
+                    const response = await fetch(`/api/settings/environment?bookId=${bookId}`);
+                    const data = await response.json();
+                    worldViewContent = data.value || '';
+                } catch (error) {
+                    console.error('获取世界观失败:', error);
+                }
+            }
+
+            // 构建提示词
+            const prompt = `请你作为一个专业的小说策划师，${includeWorldView.checked ? '基于以下世界观：\n\n' + worldViewContent + '\n\n' : ''}为我构建一组完整的小说人物设定。
+需要包含以下要素：
+1. 主要人物：详细描述每个主要人物的性格特征、背景故事、能力特点等
+2. 次要人物：简要描述重要的配角人物
+3. 人物关系：描述主要人物之间的关系网络
+4. 成长轨迹：主要人物可能的成长方向和发展路线
+5. 矛盾冲突：人物之间潜在的矛盾点和冲突源
+6. 个性特征：每个主要人物独特的性格特点和行为模式
+
+请详细描述每个方面，使人物形象丰满立体，性格特点鲜明，关系网络合理。`;
+
+            try {
+                modalText.value = '正在生成人物设定...';
+                
+                if (selectedModel === 'google-ai') {
+                    // 调用谷歌 AI API
+                    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            contents: [{
+                                role: "user",
+                                parts: [{ text: prompt }]
+                            }]
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.candidates && result.candidates[0] && result.candidates[0].content) {
+                        modalText.value = result.candidates[0].content.parts[0].text;
+                    } else {
+                        modalText.value = '生成失败：未获取到有效响应';
+                    }
+                } else {
+                    // 其他模型通过服务器处理
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: "你是一个专业的小说策划师，擅长构建小说人物设定和人物关系。"
+                                },
+                                {
+                                    role: "user",
+                                    content: prompt
+                                }
+                            ],
+                            model: selectedModel,
+                            temperature: 0.7,
+                            top_p: 0.9,
+                            max_tokens: 8000
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.choices && result.choices[0]) {
+                        modalText.value = result.choices[0].message.content;
+                    } else {
+                        modalText.value = '生成失败：未获取到有效响应';
+                    }
+                }
+            } catch (error) {
+                console.error('生成人物设定失败:', error);
+                modalText.value = '生成人物设定失败，请重试';
             }
         }
 

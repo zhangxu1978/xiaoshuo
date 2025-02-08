@@ -241,6 +241,7 @@ const fetch = require('node-fetch');
                     <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
                     <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
                      <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
+                    <option value="deepseek-tianyi-ai">天翼AI</option>
                     </select>
                     <button class="modal-btn getText" onclick="getText()">获取润色</button>
                 <button class="maximize-btn" onclick="toggleMaximize()">⛶</button>
@@ -294,6 +295,7 @@ const fetch = require('node-fetch');
                             <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
                             <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
                             <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
+                            <option value="deepseek-tianyi-ai">天翼AI</option>
                         </select>
                         <button class="modal-btn" onclick="generateChapterSummary()" style="background-color: #2196F3; color: white;">获取摘要</button>
                     </div>
@@ -319,6 +321,7 @@ const fetch = require('node-fetch');
                             <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
                             <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
                             <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
+                            <option value="deepseek-tianyi-ai">天翼AI</option>
                         </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -583,34 +586,89 @@ const fetch = require('node-fetch');
                 loadingSpinner.style.display = 'block';
                 getTextArea.value = '正在处理中...';
 
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        messages: [
-                            {
-                                role: "system",
-                                content: "你是一个专业的小说编辑，擅长对文字进行润色和修改。"
-                            },
-                            {
+                if (selectedModel === 'google-ai') {
+                    // 直接调用谷歌 AI API
+                    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            contents: [{
                                 role: "user",
-                                content: selectedText
-                            }
-                        ],
-                        model: selectedModel,
-                        temperature: 0.7,
-                        top_p: 0.9,
-                        max_tokens: 8000
-                    })
-                });
+                                parts: [{ text: selectedText }]
+                            }]
+                        })
+                    });
 
-                const result = await response.json();
-                if (result.choices && result.choices[0]) {
-                    getTextArea.value = result.choices[0].message.content;
+                    const result = await response.json();
+                    if (result.candidates && result.candidates[0] && result.candidates[0].content) {
+                        getTextArea.value = result.candidates[0].content.parts[0].text;
+                    } else {
+                        getTextArea.value = '处理失败：未获取到有效响应';
+                    }
+                } else if (selectedModel === 'deepseek-tianyi-ai') {
+                    // 调用天翼AI API
+                    const url = 'https://wishub-x1.ctyun.cn/v1/chat/completions';
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ae230490cbe44e278ca6501c765151e3' // 需要替换为实际的APP_KEY
+                        },
+                        body: JSON.stringify({
+                            model: '4bd107bff85941239e27b1509eccfe98', // 需要替换为实际的MODEL_ID
+                            messages: [
+                                {
+                                    role: "user",
+                                    content: selectedText
+                                }
+                            ],
+                            temperature: 0.8,
+                            top_p: 0.8,
+                            max_tokens: 2048,
+                            stream: false
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.code === 0 && result.choices && result.choices[0]) {
+                        getTextArea.value = result.choices[0].message.content;
+                    } else {
+                        getTextArea.value = '处理失败：' + (result.error ? result.error.message : '未获取到有效响应');
+                    }
                 } else {
-                    getTextArea.value = '处理失败：未获取到有效响应';
+                    // 其他模型仍然通过服务器处理
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: "你是一个专业的小说编辑，擅长对文字进行润色和修改。"
+                                },
+                                {
+                                    role: "user",
+                                    content: selectedText
+                                }
+                            ],
+                            model: selectedModel,
+                            temperature: 0.7,
+                            top_p: 0.9,
+                            max_tokens: 8000
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.choices && result.choices[0]) {
+                        getTextArea.value = result.choices[0].message.content;
+                    } else {
+                        getTextArea.value = '处理失败：未获取到有效响应';
+                    }
                 }
             } catch (error) {
                 console.error('AI润色请求失败:', error);
@@ -789,34 +847,68 @@ const fetch = require('node-fetch');
             try {
                 summaryInput.value = '正在生成摘要...';
                 
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        messages: [
-                            {
-                                role: "system",
-                                content: "你是一个专业的小说编辑，请对下面的章节内容进行全面的总结分析。请包含以下方面：\n1. 时间和地点\n2. 出场人物及其关键行为\n3. 故事情节摘要\n4. 重要的伏笔和隐喻（如果有）\n5. 本章节对整体故事的推动作用\n\n请用简洁清晰的语言进行总结。"
-                            },
-                            {
+                if (selectedModel === 'google-ai') {
+                    // 直接调用谷歌 AI API
+                    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            contents: [{
                                 role: "user",
-                                content: chapterContent
-                            }
-                        ],
-                        model: selectedModel,
-                        temperature: 0.7,
-                        top_p: 0.9,
-                        max_tokens: 8000
-                    })
-                });
+                                parts: [{ 
+                                    text: `请对下面的章节内容进行全面的总结分析。请包含以下方面：
+1. 时间和地点
+2. 出场人物及其关键行为
+3. 故事情节摘要
+4. 重要的伏笔和隐喻（如果有）
+5. 本章节对整体故事的推动作用
 
-                const result = await response.json();
-                if (result.choices && result.choices[0]) {
-                    summaryInput.value = result.choices[0].message.content;
+章节内容：${chapterContent}` 
+                                }]
+                            }]
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.candidates && result.candidates[0] && result.candidates[0].content) {
+                        summaryInput.value = result.candidates[0].content.parts[0].text;
+                    } else {
+                        summaryInput.value = '生成摘要失败：未获取到有效响应';
+                    }
                 } else {
-                    summaryInput.value = '生成摘要失败：未获取到有效响应';
+                    // 其他模型仍然通过服务器处理
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: "你是一个专业的小说编辑，请对下面的章节内容进行全面的总结分析。请包含以下方面：\n1. 时间和地点\n2. 出场人物及其关键行为\n3. 故事情节摘要\n4. 重要的伏笔和隐喻（如果有）\n5. 本章节对整体故事的推动作用\n\n请用简洁清晰的语言进行总结。"
+                                },
+                                {
+                                    role: "user",
+                                    content: chapterContent
+                                }
+                            ],
+                            model: selectedModel,
+                            temperature: 0.7,
+                            top_p: 0.9,
+                            max_tokens: 8000
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.choices && result.choices[0]) {
+                        summaryInput.value = result.choices[0].message.content;
+                    } else {
+                        summaryInput.value = '生成摘要失败：未获取到有效响应';
+                    }
                 }
             } catch (error) {
                 console.error('生成摘要失败:', error);
@@ -880,61 +972,118 @@ const fetch = require('node-fetch');
                         if (summaryData.success) {
                             context += '相关章节摘要：\n' + summaryData.summaries.join('\n\n') + '\n\n';
                         }
+                        //alter(summaryData);
                     } catch (error) {
                         console.error('加载章节摘要失败:', error);
                     }
                 }
 
                 // 发送重构请求
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        messages: [
-                            {
-                                role: "system",
-                                content: "你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。"
-                            },
-                            {
+                if (modelSelect.value === 'google-ai') {
+                    // 直接调用谷歌 AI API
+                    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            contents: [{
                                 role: "user",
-                                content: `${context}原章节内容：\n${currentContent}\n\n重构要求：\n${requirements}`
-                            }
-                        ],
-                        model: modelSelect.value,
-                        temperature: 0.7,
-                        top_p: 0.9,
-                        max_tokens: 8000
-                    })
-                });
+                                parts: [{ 
+                                    text: `你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。
 
-                const result = await response.json();
-                if (result.choices && result.choices[0]) {
-                    const reconstructedContent = result.choices[0].message.content;
-                    
-                    // 更新章节内容
-                    document.getElementById('chapterContent').textContent = reconstructedContent;
-                    
-                    // 保存更新到服务器
-                    await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`, {
-                        method: 'PUT',
+${context}
+
+原章节内容：
+${currentContent}
+
+重构要求：
+${requirements}` 
+                                }]
+                            }]
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.candidates && result.candidates[0] && result.candidates[0].content) {
+                        const reconstructedContent = result.candidates[0].content.parts[0].text;
+                        
+                        // 更新章节内容
+                        document.getElementById('chapterContent').textContent = reconstructedContent;
+                        
+                        // 保存更新到服务器
+                        await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                title: document.getElementById('chapterTitle').textContent,
+                                content: reconstructedContent
+                            })
+                        });
+
+                        alert('章节重构完成');
+                        closeReconstructModal();
+                        
+                        // 更新字数统计
+                        updateWordCount();
+                    } else {
+                        alert('重构失败：未获取到有效响应');
+                    }
+                } else {
+                    // 其他模型仍然通过服务器处理
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            title: document.getElementById('chapterTitle').textContent,
-                            content: reconstructedContent
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: "你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。"
+                                },
+                                {
+                                    role: "user",
+                                    content: `${context}原章节内容：\n${currentContent}\n\n重构要求：\n${requirements}`
+                                }
+                            ],
+                            model: modelSelect.value,
+                            temperature: 0.7,
+                            top_p: 0.9,
+                            max_tokens: 8000
                         })
                     });
 
-                    alert('章节重构完成');
-                    closeReconstructModal();
-                    
-                    // 更新字数统计
-                    updateWordCount();
-                } else {
-                    alert('重构失败：未获取到有效响应');
+                    const result = await response.json();
+                    if (result.choices && result.choices[0]) {
+                        const reconstructedContent = result.choices[0].message.content;
+                        
+                        // 更新章节内容
+                        document.getElementById('chapterContent').textContent = reconstructedContent;
+                        
+                        // 保存更新到服务器
+                        await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                title: document.getElementById('chapterTitle').textContent,
+                                content: reconstructedContent
+                            })
+                        });
+
+                        alert('章节重构完成');
+                        closeReconstructModal();
+                        
+                        // 更新字数统计
+                        updateWordCount();
+                    } else {
+                        alert('重构失败：未获取到有效响应');
+                    }
                 }
             } catch (error) {
                 console.error('章节重构失败:', error);

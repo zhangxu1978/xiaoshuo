@@ -56,6 +56,13 @@ const googleModel = genAI.getGenerativeModel({
     }
 });
 
+// 天翼AI配置
+const tianyiConfig = {
+    apiKey: 'ae230490cbe44e278ca6501c765151e3',
+    modelId: '4bd107bff85941239e27b1509eccfe98',
+    apiBase: 'https://wishub-x1.ctyun.cn/v1'
+};
+
 app.use(express.static(path.join(__dirname)));
 app.use(bodyParser.json());
 app.use(session({
@@ -190,7 +197,7 @@ app.post('/api/books', (req, res) => {
     const newBook = {
         id: books.length + 1,
         title,
-        author: zhangxu, // 实际应该从session获取
+        author:  req.session.user.username, // 实际应该从session获取
         chapters: []
     };
     books.push(newBook);
@@ -555,99 +562,59 @@ app.post('/api/generate-static', async (req, res) => {
     }
 });
 
-// DeepSeek API 调用接口
+// 添加聊天API处理
 app.post('/api/chat', async (req, res) => {
+    const { messages, model, temperature, top_p, max_tokens } = req.body;
+
     try {
-        const { messages } = req.body;
-        const temperature = req.body.temperature || 0.7;
-        const top_p = req.body.top_p || 0.9;
-        const max_tokens = req.body.max_tokens || 8000;
-        const model = req.body.model || deepseekConfig.model;
-
-        if (!messages || !Array.isArray(messages) || messages.length === 0) {
-            return res.status(400).json({
-                success: false,
-                error: {
-                    message: '无效的消息格式'
-                }
+        if (model === 'deepseek-tianyi-ai') {
+            // 调用天翼AI
+            const response = await fetch(`${tianyiConfig.apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${tianyiConfig.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: tianyiConfig.modelId,
+                    messages,
+                    temperature: temperature || 0.8,
+                    top_p: top_p || 0.8,
+                    max_tokens: max_tokens || 2048,
+                    stream: false
+                })
             });
-        }
 
-        let response;
-        let error = null;
-        
-        // 首先尝试使用指定的模型
-        try {
-            if (model === 'google-ai') {
-                // Google AI 处理逻辑
-                const formattedMessages = messages.map(msg => ({
-                    role: msg.role === "user" ? "user" : "model",
-                    parts: [{ text: msg.content }]
-                }));
-
-                if (formattedMessages[0].role !== "user") {
-                    formattedMessages.unshift({
-                        role: "user",
-                        parts: [{ text: "开始对话" }]
-                    });
-                }
-
-                const chat = googleModel.startChat({
-                    history: formattedMessages.slice(0, -1)
-                });
-
-                const lastMessage = messages[messages.length - 1];
-                const result = await chat.sendMessage(lastMessage.content);
-                const responseText = result.response.text();
-
-                response = {
+            const result = await response.json();
+            
+            if (result.code === 0 && result.choices && result.choices[0]) {
+                res.json({
                     choices: [{
                         message: {
-                            content: responseText
+                            content: result.choices[0].message.content
                         }
                     }]
-                };
+                });
             } else {
-                // DeepSeek 处理逻辑
-                const formattedMessages = messages.map(msg => ({
-                    role: msg.role === 'user' ? 'user' : 'assistant',
-                    content: msg.content
-                }));
-
-                response = await openai.chat.completions.create({
-                    model: deepseekConfig.model,
-                    messages: formattedMessages,
-                    temperature,
-                    max_tokens,
-                    top_p,
-                    stream: false
+                console.error('天翼AI返回错误:', result.error);
+                res.status(500).json({
+                    error: {
+                        message: '调用天翼AI失败: ' + (result.error ? result.error.message : '未知错误')
+                    }
                 });
             }
-        } catch (e) {
-            error = e;
-            console.error(`${model} API调用失败:`, e);
+        } else if (model.startsWith('deepseek-ai/')) {
+            // 处理DeepSeek模型
+            // ... existing deepseek code ...
+        } else {
+            // 处理其他模型
+            res.status(400).json({ error: { message: '不支持的模型类型' } });
         }
-
-
-
-        if (!response || !response.choices || !response.choices[0]) {
-            return res.status(500).json({
-                success: false,
-                error: {
-                    message: '无效的API响应格式'
-                }
-            });
-        }
-
-        res.json(response);
-
     } catch (error) {
-        console.error('处理请求时发生错误:', error);
+        console.error('处理聊天请求时出错:', error);
         res.status(500).json({
-            success: false,
             error: {
-                message: '服务器内部错误',
-                details: error.message
+                message: '服务器内部错误: ' + error.message
             }
         });
     }
@@ -808,3 +775,153 @@ app.get('/api/chapter-summaries', (req, res) => {
         });
     }
 });
+
+// 测试 Google AI API 连接
+app.get('/api/test-google-ai', async (req, res) => {
+    try {
+        const apiKey = "AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI";
+        const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
+        
+        // 创建 https-proxy-agent 实例
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        const proxyAgent = new HttpsProxyAgent(process.env.https_proxy || 'http://127.0.0.1:7890');
+        
+        const response = await fetch(`${url}?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            agent: proxyAgent,  // 使用代理
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: "你好，这是一个测试消息。请用中文回复。"
+                    }]
+                }]
+            }),
+            // 添加超时设置
+            timeout: 30000,
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+        }
+
+        const data = await response.json();
+        
+        // 验证响应数据的结构
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+            throw new Error('Invalid response format from Google AI API');
+        }
+
+        res.json({
+            success: true,
+            response: data,
+            message: '连接测试成功',
+            responseText: data.candidates[0].content.parts[0].text
+        });
+    } catch (error) {
+        console.error('测试 Google AI API 失败:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            message: '连接测试失败'
+        });
+    }
+});
+
+// 文本操作函数
+function operateText(lineNumber, operation, text1, text2) {
+    // 将文本2按行分割成数组
+    const lines = text2.split('\n');
+    
+    // 根据不同操作类型处理文本
+    switch (operation.toLowerCase()) {
+        case 'insert':
+            // 在指定行前插入文本
+            if (lineNumber > 0 && lineNumber <= lines.length + 1) {
+                lines.splice(lineNumber - 1, 0, text1);
+            }
+            break;
+            
+        case 'update':
+            // 更新指定行的文本
+            if (lineNumber > 0 && lineNumber <= lines.length) {
+                lines[lineNumber - 1] = text1;
+            }
+            break;
+            
+        case 'delete':
+            // 删除指定行
+            if (lineNumber > 0 && lineNumber <= lines.length) {
+                lines.splice(lineNumber - 1, 1);
+            }
+            break;
+            
+        case 'append':
+            // 在指定行后追加文本
+            if (lineNumber > 0 && lineNumber <= lines.length) {
+                lines.splice(lineNumber, 0, text1);
+            }
+            break;
+            
+        default:
+            throw new Error('不支持的操作类型');
+    }
+    
+    // 将处理后的数组重新组合成文本并返回
+    return lines.join('\n');
+}
+
+// 处理文本操作指令的函数
+function processTextOperations(operationsText, targetText) {
+    // 定义匹配操作指令的正则表达式（包括行操作和替换操作）
+    const lineOperationPattern = /(insert|delete|append|update)\((\d+),([^)]+)\)/g;
+    const replacePattern = /replace\(([^,]+),([^)]+)\)/g;
+    
+    // 存储所有找到的操作
+    const operations = [];
+    let match;
+    
+    // 查找所有行操作指令
+    while ((match = lineOperationPattern.exec(operationsText)) !== null) {
+        operations.push({
+            type: 'line',
+            operation: match[1],         // 操作类型
+            lineNumber: parseInt(match[2]), // 行号
+            text: match[3].trim()        // 要操作的文本
+        });
+    }
+    
+    // 查找所有替换操作指令
+    while ((match = replacePattern.exec(operationsText)) !== null) {
+        operations.push({
+            type: 'replace',
+            searchText: match[1].trim(),    // 要查找的文本
+            replaceText: match[2].trim()    // 要替换的文本
+        });
+    }
+    
+    // 先执行替换操作
+    let resultText = targetText;
+    for (const op of operations.filter(op => op.type === 'replace')) {
+        resultText = resultText.split(op.searchText).join(op.replaceText);
+    }
+    
+    // 按行号从大到小排序行操作（从后往前执行）
+    const lineOperations = operations.filter(op => op.type === 'line')
+        .sort((a, b) => b.lineNumber - a.lineNumber);
+    
+    // 执行行操作
+    for (const op of lineOperations) {
+        resultText = operateText(
+            op.lineNumber,
+            op.operation,
+            op.text,
+            resultText
+        );
+    }
+    
+    return resultText;
+}
