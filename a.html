@@ -345,97 +345,139 @@
         async function callAPI(message) {
             const modelType = document.getElementById('model-select').value;
             
-            if (modelType === 'xai') {
-                const url = 'https://api.x.ai/v1/chat/completions';
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer xai-0zKfaBacZ2DJXTNhfS4fnjhObmNSPSnEamvmLP4F9lc7lEu5G1MarMU6R88VBwef0c2DHDvS8u57Thb0'
-                };
-                const data = {
-                    "messages": conversationHistory.concat([{ "role": "user", "content": message }]),
-                    "model": "grok-beta",
-                    "stream": false,
-                    "temperature": 0
-                };
-
-                try {
-                    const response = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) });
-                    const result = await response.json();
-                    return result;
-                } catch (error) {
-                    console.error('Error:', error);
-                    return null;
-                }
-            } else if (modelType === 'gemini-2.0-flash-thinking') {
-                const url = 'https://openrouter.ai/api/v1/chat/completions';
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer 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',
-                };
-                const data = {
-                    "model": "google/gemini-2.0-flash-thinking-exp:free",
-                    "messages": conversationHistory.concat([{ "role": "user", "content": message }])
-                };
-
-                try {
-                    const response = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) });
-                    const result = await response.json();
-                    return result;
-                } catch (error) {
-                    console.error('Error:', error);
-                    return null;
-                }
-            } else if (modelType === 'qianwen') {
-                const url = 'https://openrouter.ai/api/v1/chat/completions';
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer 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',
-
-                };
-                const data = {
-                    "model": "qwen/qwen-2-7b-instruct:free",
-                    "messages": conversationHistory.concat([{ "role": "user", "content": message }])
-                };
-
-                try {
-                    const response = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) });
-                    const result = await response.json();
-                    return result;
-                } catch (error) {
-                    console.error('Error:', error);
-                    return null;
+            if (modelType === 'doubao-deepseek-ai') {
+                // 通过后端服务器中转请求
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: "system",
+                                content: "你是一个专业的AI助手。"
+                            },
+                            ...conversationHistory,
+                            { 
+                                role: "user", 
+                                content: message 
+                            }
+                        ],
+                        model: "doubao-deepseek-ai",
+                        temperature: 0.8,
+                        top_p: 0.8,
+                        max_tokens: 2048
+                    })
+                });
             }
-            } else if (modelType === 'deepseek') {
-                const url = 'https://api.siliconflow.cn/v1/chat/completions';
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer sk-oxndvuljdpkxtoklbibzjharjcrlglxqstrectxsxgkmbagt',
-                };
-                
-                const data = {
-                    "model": "deepseek-ai/DeepSeek-V2.5",
-                    "messages": conversationHistory.concat([{
-                        "role": "user",
-                        "content": [{
-                            "type": "text",
-                            "text": message
+            else if (modelType === 'doubao-deepseek-r1-ai') {
+                // 通过后端服务器中转请求
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: "system",
+                                content: "你是一个专业的AI助手。"
+                            },
+                            ...conversationHistory,
+                            { 
+                                role: "user", 
+                                content: message 
+                            }
+                        ],
+                        model: "doubao-deepseek-r1-ai",
+                        temperature: 0.8,
+                        top_p: 0.8,
+                        max_tokens: 8000
+                    })
+                });
+            }
+            else if (modelType === 'deepseek-ai/DeepSeek-R1') {
+                //硅基流动deepseekR1
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: "system",
+                                content: "你是一个专业的AI助手。"
+                            },
+                            ...conversationHistory,
+                            { 
+                                role: "user", 
+                                content: message 
+                            }
+                        ],
+                        model: "deepseek-ai/DeepSeek-R1",
+                        temperature: 0.8,
+                        top_p: 0.8,
+                        max_tokens: 4096
+                    })      
+                }); 
+                const result = await response.json();
+                if (result.choices && result.choices[0]) {
+                    return {
+                        choices: [{
+                            message: {
+                                content: result.choices[0].message.content
+                            }
                         }]
-                    }])
-                };
-
-                try {
-                    const response = await fetch(url, { 
-                        method: 'POST', 
-                        headers: headers, 
-                        body: JSON.stringify(data) 
-        });
-                    const result = await response.json();
-                    return result;
-                } catch (error) {
-                    console.error('Error:', error);
+                    };
+                }
+                else {
+                    console.error('硅基流动deepseekR1返回错误:', result.error);
                     return null;
                 }
-            } else if (modelType === 'deepseek-tianyi-ai') {
+            }
+            else if (modelType === 'deepseek-ai/DeepSeek-V3') {
+                //硅基流动deepseekV3
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: "system",
+                                content: "你是一个专业的AI助手。"
+                            },
+                            ...conversationHistory,
+                            { 
+                                role: "user", 
+                                content: message 
+                            }
+                        ],    
+                        model: "deepseek-ai/DeepSeek-V3",
+                        temperature: 0.8,
+                        top_p: 0.8,
+                        max_tokens: 4096
+                    })
+                });
+                const result = await response.json();
+               if (result.choices && result.choices[0]) {
+                    return {
+                        choices: [{
+                            message: {
+                                content: result.choices[0].message.content
+                            }
+                        }]
+                    };
+                }
+                else {
+                    console.error('硅基流动deepseekV3返回错误:', result.error);
+                    return null;
+                }
+            }
+            else if (modelType === 'deepseek-tianyi-ai') {
                 // 通过后端服务器中转请求
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -718,11 +760,6 @@
     document.getElementById('response-container').innerHTML = '';
 });
 
-document.getElementById('merge-chapters-button').addEventListener('click', () => {
-    const mergeText = "请你把下面的几篇文章合并成一章，并重新命名。注意章回之间的过渡要稍作修改，使得过渡不那么生硬。你新添加的文字请用【】括起来，方便查看.合并后的文章用markdown的代码方式输出，方便复制";
-    document.getElementById('user-input').value = mergeText;
-    document.getElementById('user-input').style.height = document.getElementById('user-input').scrollHeight + 'px';
-});
 
 document.getElementById('user-input').addEventListener('input', function() {
     this.style.height = 'auto'; // 重置高度

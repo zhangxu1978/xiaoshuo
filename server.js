@@ -73,6 +73,31 @@ const huaweiConfig = {
     model: config.huawei.model
 };
 
+// 火山引擎DeepSeek配置
+const doubaoConfig = {
+    apiKey: config.doubao.apiKey,
+    apiBase: config.doubao.apiBase,
+    model: config.doubao.model
+};
+
+// 火山引擎DeepSeekR1配置
+const doubaoR1Config = {
+    apiKey: config.doubaoR1.apiKey,
+    apiBase: config.doubaoR1.apiBase,
+    model: config.doubaoR1.model
+};
+// 硅基流动deepseekR1配置
+const siliconflowDeepseekR1Config = {
+    apiKey: config.siliconflowDeepseekR1.apiKey,
+    apiBase: config.siliconflowDeepseekR1.apiBase,
+    model: config.siliconflowDeepseekR1.model
+};
+// 硅基流动deepseekV3配置
+const siliconflowDeepseekV3Config = {
+    apiKey: config.siliconflowDeepseekV3.apiKey,
+    apiBase: config.siliconflowDeepseekV3.apiBase,
+    model: config.siliconflowDeepseekV3.model
+};
 app.use(express.static(path.join(__dirname)));
 app.use(bodyParser.json());
 app.use(session({
@@ -589,13 +614,13 @@ app.post('/api/chat', async (req, res) => {
                     model: huaweiConfig.model,
                     messages,
                     temperature: temperature || 1.0,
-                    max_tokens: max_tokens || 20,
+                    max_tokens: 2048,
                     stream: false
                 })
             });
 
             const result = await response.json();
-            
+            console.log('华为云AI返回结果:', result);
             if (result.choices && result.choices[0]) {
                 res.json({
                     choices: [{
@@ -612,7 +637,68 @@ app.post('/api/chat', async (req, res) => {
                     }
                 });
             }
-        } else if (model === 'deepseek-tianyi-ai') {
+        }
+        else if (model === 'doubao-deepseek-r1-ai') {
+            // 调用火山引擎DeepSeekR1
+            const response = await fetch(`${doubaoR1Config.apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${doubaoR1Config.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: doubaoR1Config.model,
+                    messages,
+                    temperature: temperature || 0.8,
+                    top_p: top_p || 0.8,
+                    max_tokens: max_tokens || 8000,
+                    stream: false
+                })
+            });
+            const result = await response.json();
+            //序列化火山引擎DeepSeekR1返回结果: {"choices":[{"finish_reason":"stop","index":0,"logprobs":null,"message":{"content":"\n\n你好！很高兴见到你。有什么我可以帮助你的吗？","reasoning_content":"好的，用户发来了“你好”，这是一个常见的中文问候。我需要用中文回复，保持友好和自然。首先，我应 该回应问候，比如“你好！很高兴见到你。”然后，按照用户的要求，我需要提供一个例子来展示我的思考过程，但用户可能希望这个例子是中文的。接下来，我需要确保回答符合他们的需求，比如询问他们需要什么帮助。要注意保持口语化，避免使用格式化的结构，同时遵循中文的表达习惯。此外，要避免任何Markdown格式，保持文本简洁。最后，确保回答准确，符合用户的指示。现在，把这些整合起来，形成自然流畅的回应。\n","role":"assistant"}}],"created":1739110675,"id":"02173911066296584bae976ab37fc49f95f8882bb751870ac2210","model":"deepseek-r1-250120","object":"chat.completion","usage":{"completion_tokens":145,"prompt_tokens":12,"total_tokens":157,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":132}}}
+            const resultString = JSON.stringify(result);
+           // console.log('火山引擎DeepSeekR1返回结果:', resultString);
+           const reasoning_content = result.choices[0].message["reasoning_content"];
+           const content = result.choices[0].message["content"];
+           const assistantMessage = "思考过程：" + reasoning_content + "\n\n回答："  + content;
+            res.json({
+                choices: [{
+                    message: {
+                        content: assistantMessage
+                    }
+                }]
+            });
+        }
+        else if (model === 'doubao-deepseek-ai') {
+            // 调用火山引擎DeepSeek
+            const response = await fetch(`${doubaoConfig.apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${doubaoConfig.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: doubaoConfig.model,
+                    messages,
+                    temperature: temperature || 0.8,
+                    top_p: top_p || 0.8,
+                    max_tokens: max_tokens || 8000,
+                    stream: false
+                })
+            });
+            const result = await response.json();
+            console.log('火山引擎DeepSeek返回结果:', result);
+            res.json({
+                choices: [{
+                    message: {
+                        content: result.choices[0].message.content
+                    }
+                }]
+            });
+        
+        }   
+        else if (model === 'deepseek-tianyi-ai') {
             // 调用天翼AI
             const response = await fetch(`${tianyiConfig.apiBase}/chat/completions`, {
                 method: 'POST',
@@ -648,10 +734,62 @@ app.post('/api/chat', async (req, res) => {
                     }
                 });
             }
-        } else if (model.startsWith('deepseek-ai/')) {
-            // 处理DeepSeek模型
-            // ... existing deepseek code ...
-        } else {
+        }
+        else if (model=="deepseek-ai/DeepSeek-R1"){
+            // 调用硅基流动deepseekR1
+            const response = await fetch(`${siliconflowDeepseekR1Config.apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${siliconflowDeepseekR1Config.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: siliconflowDeepseekR1Config.model,
+                    messages,
+                    temperature: temperature || 0.8,
+                    top_p: top_p || 0.8,
+                    max_tokens: max_tokens || 4096,
+                    stream: false
+                })
+            });
+            const result = await response.json();
+            console.log('硅基流动deepseekR1返回结果:', result);
+            res.json({
+                choices: [{
+                    message: {
+                        content: result.choices[0].message.content
+                    }
+                }]
+            });
+        }
+        else if (model=="deepseek-ai/DeepSeek-V3"){
+            // 调用硅基流动deepseekV3
+            const response = await fetch(`${siliconflowDeepseekV3Config.apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${siliconflowDeepseekV3Config.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: siliconflowDeepseekV3Config.model,
+                    messages,
+                    temperature: temperature || 0.8,
+                    top_p: top_p || 0.8,
+                    max_tokens: max_tokens || 4096,
+                    stream: false
+                })
+            });
+            const result = await response.json();
+            console.log('硅基流动deepseekV3返回结果:', result);
+            res.json({
+                choices: [{
+                    message: {
+                        content: result.choices[0].message.content
+                    }
+                }]
+            });
+        }   
+        else {
             // 处理其他模型
             res.status(400).json({ error: { message: '不支持的模型类型' } });
         }
@@ -821,60 +959,6 @@ app.get('/api/chapter-summaries', (req, res) => {
     }
 });
 
-// 测试 Google AI API 连接
-app.get('/api/test-google-ai', async (req, res) => {
-    try {
-        const apiKey = config.google.apiKey;
-        const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
-        
-        // 创建 https-proxy-agent 实例
-        const { HttpsProxyAgent } = require('https-proxy-agent');
-        const proxyAgent = new HttpsProxyAgent(process.env.https_proxy || 'http://127.0.0.1:7890');
-        
-        const response = await fetch(`${url}?key=${apiKey}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            agent: proxyAgent,  // 使用代理
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: "你好，这是一个测试消息。请用中文回复。"
-                    }]
-                }]
-            }),
-            // 添加超时设置
-            timeout: 30000,
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
-        }
-
-        const data = await response.json();
-        
-        // 验证响应数据的结构
-        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-            throw new Error('Invalid response format from Google AI API');
-        }
-
-        res.json({
-            success: true,
-            response: data,
-            message: '连接测试成功',
-            responseText: data.candidates[0].content.parts[0].text
-        });
-    } catch (error) {
-        console.error('测试 Google AI API 失败:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message,
-            message: '连接测试失败'
-        });
-    }
-});
 
 // 文本操作函数
 function operateText(lineNumber, operation, text1, text2) {
