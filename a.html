@@ -102,9 +102,12 @@
             border: none;
             border-radius: 20px;
             font-size: 16px;
-            resize: vertical;
+            resize: none;
             min-height: 40px;
             max-height: 200px;
+            overflow-y: hidden;
+            line-height: 1.5;
+            box-sizing: border-box;
             transition: all 0.3s ease;
         }
 
@@ -289,28 +292,36 @@
 <body>
     <div id="response-container"></div>
     <div id="input-container">
-        <div class="action-menu">
-            <button class="action-button">⋮</button>
-            <div class="action-dropdown">
-                <button class="action-item" onclick="document.getElementById('file-input').click()">
-                    <span class="icon">📁</span>
-                    Load Chat
-                </button>
-                <button class="action-item" onclick="downloadChat()">
-                    <span class="icon">💾</span>
-                    Save Chat
-                </button>
-                <button class="action-item" onclick="clearChat()">
-                    <span class="icon">🗑️</span>
-                    Clear Chat
-                </button>
-            </div>
-        </div>
         <select id="model-select">
             <!-- 模型选项将通过JavaScript动态加载 -->
         </select>
-        <textarea id="user-input" placeholder="Type your message..." rows="1"></textarea>
-        <button id="send-button">Send</button>
+        <div class="action-menu">
+            <button class="action-button">⋮</button>
+            <div class="action-dropdown">
+                <label for="file-input" class="action-item">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path fill="none" stroke="currentColor" stroke-width="2" d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
+                    上传对话
+                </label>
+                <button class="action-item" id="download-button">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path fill="none" stroke="currentColor" stroke-width="2" d="M12 5v14m0 0l-6-6m6 6l6-6"/>
+                    </svg>
+                    下载对话
+                </button>
+                <button class="action-item" id="clear-button">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path fill="none" stroke="currentColor" stroke-width="2" d="M6 18l6-6 6 6M18 18V6M6 6v12"/>
+                    </svg>
+                    清空对话
+                </button>
+            </div>
+            <input type="file" id="file-input" accept=".json" style="display: none;" onchange="loadFile(event)">
+        </div>
+        
+        <textarea id="user-input" placeholder="shift enter 发送数据"></textarea>
+        <button id="send-button">发送</button>
     </div>
 
     <script>
@@ -540,16 +551,33 @@
             await sendMessage();
         });
 
-        document.getElementById('user-input').addEventListener('keydown', async (event) => {
+        // 添加输入框自动调整高度的功能
+        const userInput = document.getElementById('user-input');
+        
+        function adjustHeight() {
+            userInput.style.height = 'auto';
+            userInput.style.height = userInput.scrollHeight + 'px';
+        }
+        
+        // 监听输入事件
+        userInput.addEventListener('input', adjustHeight);
+        
+        // 监听键盘事件
+        userInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 if (event.shiftKey) {
                     // Shift + Enter: 发送消息
                     event.preventDefault();
-                    await sendMessage();
-            }
-                // 普通回车: 默认换行行为，不需要做任何处理
+                    sendMessage();
+                } else {
+                    // 普通回车: 添加换行后调整高度
+                    setTimeout(adjustHeight, 0);
+                }
             }
         });
+
+        // 初始化时调整一次高度
+        window.addEventListener('load', adjustHeight);
 
         function loadFile(event) {
             const file = event.target.files[0];

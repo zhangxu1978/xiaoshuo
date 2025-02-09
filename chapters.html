@@ -213,6 +213,7 @@
                     <input type="number" id="chapterInput" placeholder="输入章节号" style="width: 100px; padding: 5px;">
                     <button class="setting-btn" style="margin: 0; padding: 5px 10px;" onclick="loadChapterToAi()">载入章节</button>
                     <select id="keywordSelect" style="padding: 5px;">
+                        <option value="这是一部以______（星际殖民/蒸汽魔法/赛博江湖）为背景的______（类型）小说，核心想探讨______（主题），如何设计贯穿始终的核心冲突？&#13;&#10;请给三个颠覆______（传统修仙/末世求生/豪门恩怨）设定的创新方案，需包含世界观突变点与人物异化要素&#13;&#10;如果要在______（场景/道具/能力体系）中植入______（哲学概念/科学理论/历史隐喻），有哪些融合方式？">核心基因</option>
                         <option value="我要写【类型】的小说，帮我构建一个世界，然后构建主要角色，然后构建章节目录，章节目录也是角色时间线。分成5卷写好每卷的剧情摘要，每卷50章，设置好第一卷50章的章节目录和一句话的剧情摘要">构建世界</option>
                         <option value="根据我们构建的世界，帮我创作小说的第【】卷第【】章的内容，输出字数【】字">创作小说</option>
                         <option value="世界观">世界观</option>
@@ -595,12 +596,16 @@
         // 添加关键词到AI iframe
         function addKeywordToAi() {
             const keywordSelect = document.getElementById('keywordSelect');
-            const selectedKeyword = keywordSelect.value;
+            const selectedKeyword = keywordSelect.value.replace(/&#13;&#10;/g, '\n');
             
             const aiFrame = document.getElementById('aiFrame');
             const userInput = aiFrame.contentDocument.getElementById('user-input');
             if (userInput) {
-                userInput.value +=  selectedKeyword;
+                // 如果当前输入框已有内容，先添加两个换行符
+                if (userInput.value.trim() !== '') {
+                    userInput.value += '\n\n';
+                }
+                userInput.value += selectedKeyword;
                 // 触发input事件以调整输入框高度
                 const event = new Event('input', { bubbles: true });
                 userInput.dispatchEvent(event);
@@ -705,7 +710,7 @@
                             messages: [
                                 {
                                     role: "system",
-                                    content: "你是一个专业的小说策划师，擅长构建各类型小说的世界观设定。"
+                                    content: config.systemPrompts.novel
                                 },
                                 {
                                     role: "user",
@@ -798,7 +803,7 @@
                             messages: [
                                 {
                                     role: "system",
-                                    content: "你是一个专业的小说策划师，擅长构建小说人物设定和人物关系。"
+                                    content:config.systemPrompts.novel-character
                                 },
                                 {
                                     role: "user",
@@ -925,7 +930,7 @@ ${characters}
                             messages: [
                                 {
                                     role: "system",
-                                    content: "你是一个专业的小说策划师，擅长构建小说章节大纲。"
+                                    content:config.systemPrompts.novel-timeline
                                 },
                                 {
                                     role: "user",
@@ -1191,7 +1196,7 @@ ${requirements}`
                             messages: [
                                 {
                                     role: "system",
-                                    content: "你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。"
+                                    content: config.systemPrompts.reconstructor
                                 },
                                 {
                                     role: "user",
@@ -1240,6 +1245,7 @@ ${requirements}`
             try {
                 const response = await fetch('/newbook/key.config');
                 const config = await response.json();
+                window.config = config; // 保存配置到全局变量
                 
                 // 获取所有模型选择下拉框
                 const modelSelects = [

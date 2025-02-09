@@ -648,7 +648,7 @@ const fetch = require('node-fetch');
                             messages: [
                                 {
                                     role: "system",
-                                    content: "你是一个专业的小说编辑，擅长对文字进行润色和修改。"
+                                    content: config.systemPrompts.editor
                                 },
                                 {
                                     role: "user",
@@ -888,7 +888,7 @@ const fetch = require('node-fetch');
                             messages: [
                                 {
                                     role: "system",
-                                    content: "你是一个专业的小说编辑，请对下面的章节内容进行全面的总结分析。请包含以下方面：\n1. 时间和地点\n2. 出场人物及其关键行为\n3. 故事情节摘要\n4. 重要的伏笔和隐喻（如果有）\n5. 本章节对整体故事的推动作用\n\n请用简洁清晰的语言进行总结。"
+                                    content: config.systemPrompts.summarizer
                                 },
                                 {
                                     role: "user",
@@ -1042,7 +1042,7 @@ ${requirements}`
                             messages: [
                                 {
                                     role: "system",
-                                    content: "你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。"
+                                    content: config.systemPrompts.reconstructor
                                 },
                                 {
                                     role: "user",
@@ -1188,6 +1188,7 @@ ${requirements}`
                 const response = await fetch('/newbook/key.config');
                 const config = await response.json();
                 const modelSelect = document.getElementById('modelSelect');
+                window.config = config; // 保存配置到全局变量
                 
                 // 清空现有选项
                 modelSelect.innerHTML = '';
