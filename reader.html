@@ -237,21 +237,17 @@ const fetch = require('node-fetch');
                     </select>
                     <button class="modal-btn addText" onclick="addText()">添加要求</button>
                     <select id="modelSelect" style="padding: 5px;">
-                    <option value="google-ai">谷歌AI</option>
-                    <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
-                    <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
-                     <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
-                    <option value="deepseek-tianyi-ai">天翼AI</option>
+                        <!-- 模型选项将通过JavaScript动态加载 -->
                     </select>
                     <button class="modal-btn getText" onclick="getText()">获取润色</button>
                 <button class="maximize-btn" onclick="toggleMaximize()">⛶</button>
                 <textarea id="selectedText" placeholder="在这里输入需要润色的文字"></textarea>
                 <button class="swap-btn" onclick="swapTexts()">↑↓ 交换文本</button>
                 <textarea id="getText" placeholder="这里将显示润色后的文字"></textarea>
-                <div class="loading-spinner" id="loadingSpinner"></div>
-              
+                <div class="loading-spinner"></div>
+                <div class="modal-buttons">
+                    <button class="modal-btn confirm" onclick="confirmEdit()">确认修改</button>
                     <button class="modal-btn cancel" onclick="closeModal()">取消</button>
-                    <button class="modal-btn confirm" onclick="submitAiPolish()">确定</button>
                 </div>
             </div>
         </div>
@@ -577,7 +573,7 @@ const fetch = require('node-fetch');
             const selectedText = document.getElementById('selectedText').value;
             const modelSelect = document.getElementById('modelSelect');
             const selectedModel = modelSelect.value;
-            const loadingSpinner = document.getElementById('loadingSpinner');
+            const loadingSpinner = document.querySelector('.loading-spinner');
             const getTextArea = document.getElementById('getText');
 
             if (!selectedText.trim()) {
@@ -1185,6 +1181,31 @@ ${requirements}`
                 alert('恢复副本失败');
             }
         }
+
+        // 在页面加载时获取模型配置
+        async function loadModelConfig() {
+            try {
+                const response = await fetch('/newbook/key.config');
+                const config = await response.json();
+                const modelSelect = document.getElementById('modelSelect');
+                
+                // 清空现有选项
+                modelSelect.innerHTML = '';
+                
+                // 添加新选项
+                config.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.name;
+                    modelSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('加载模型配置失败:', error);
+            }
+        }
+
+        // 页面加载时调用
+        document.addEventListener('DOMContentLoaded', loadModelConfig);
     </script>
 </body>
 </html>

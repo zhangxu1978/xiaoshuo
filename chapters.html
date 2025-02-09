@@ -167,11 +167,7 @@
             </div>
             <div id="modalControls" style="margin-bottom: 10px; display: none;">
                 <select id="modalModelSelect" style="padding: 5px; margin-right: 10px;">
-                    <option value="google-ai">谷歌AI</option>
-                    <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
-                    <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
-                    <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
-                    <option value="deepseek-tianyi-ai">天翼AI</option>
+                    <!-- 模型选项将通过JavaScript动态加载 -->
                 </select>
                 <select id="modalNovelTypeSelect" style="padding: 5px; margin-right: 10px;">
                     <option value="玄幻">玄幻</option>
@@ -187,11 +183,7 @@
             </div>
             <div id="characterControls" style="margin-bottom: 10px; display: none;">
                 <select id="characterModelSelect" style="padding: 5px; margin-right: 10px;">
-                    <option value="google-ai">谷歌AI</option>
-                    <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
-                    <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
-                    <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
-                    <option value="deepseek-tianyi-ai">天翼AI</option>
+                    <!-- 模型选项将通过JavaScript动态加载 -->
                 </select>
                 <input type="checkbox" id="includeWorldView" checked style="margin-right: 5px;">
                 <label for="includeWorldView" style="margin-right: 10px;">加载世界观</label>
@@ -199,11 +191,7 @@
             </div>
             <div id="timelineControls" style="margin-bottom: 10px; display: none;">
                 <select id="timelineModelSelect" style="padding: 5px; margin-right: 10px;">
-                    <option value="google-ai">谷歌AI</option>
-                    <option value="deepseek-ai/DeepSeek-R1">deepseekR1</option>
-                    <option value="deepseek-ai/DeepSeek-V3">deepseekV3</option>
-                    <option value="Qwen/QVQ-72B-Preview">Qwen72BP</option>
-                    <option value="deepseek-tianyi-ai">天翼AI</option>
+                    <!-- 模型选项将通过JavaScript动态加载 -->
                 </select>
                 <input type="number" id="chapterCount" placeholder="章节数量" style="padding: 5px; margin-right: 10px; width: 100px;" min="1" value="50">
                 <button onclick="generateChapterOutline()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">生成章节目录</button>
@@ -1246,6 +1234,54 @@ ${requirements}`
                 spinner.style.display = 'none';
             }
         }
+
+        // 加载模型配置
+        async function loadModelConfig() {
+            try {
+                const response = await fetch('/newbook/key.config');
+                const config = await response.json();
+                
+                // 获取所有模型选择下拉框
+                const modelSelects = [
+                    document.getElementById('modalModelSelect'),
+                    document.getElementById('characterModelSelect'),
+                    document.getElementById('timelineModelSelect')
+                ];
+                
+                // 为每个下拉框添加选项
+                modelSelects.forEach(select => {
+                    if (select) {
+                        // 清空现有选项
+                        select.innerHTML = '';
+                        
+                        // 添加新选项
+                        config.models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model.id;
+                            option.textContent = model.name;
+                            select.appendChild(option);
+                        });
+                    }
+                });
+
+                // 如果iframe存在，向其发送模型配置
+                const aiFrame = document.getElementById('aiFrame');
+                if (aiFrame && aiFrame.contentWindow) {
+                    aiFrame.contentWindow.postMessage({
+                        type: 'modelConfig',
+                        config: config.models
+                    }, '*');
+                }
+            } catch (error) {
+                console.error('加载模型配置失败:', error);
+            }
+        }
+
+        // 页面加载时调用
+        document.addEventListener('DOMContentLoaded', loadModelConfig);
+        
+        // iframe加载完成后也发送配置
+        document.getElementById('aiFrame').addEventListener('load', loadModelConfig);
     </script>
 </body>
 </html>

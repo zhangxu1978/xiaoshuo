@@ -8,6 +8,10 @@ const OpenAI = require('openai');
 const fetch = require('node-fetch');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+// 读取配置文件
+const configPath = path.join(__dirname, 'newbook', 'key.config');
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
 // 设置全局代理
 process.env.http_proxy = 'http://127.0.0.1:7890';
 process.env.https_proxy = 'http://127.0.0.1:7890';
@@ -31,23 +35,22 @@ const deepseekConfig = {
     title: "DeepSeek V3",
     model: "deepseek-coder-33b-instruct",
     contextLength: 64000,
-    apiBase: "https://api.deepseek.com/v1",
-    apiKey: "YOUR_DEEPSEEK_API_KEY", // 请替换为您的 DeepSeek API Key
+    apiBase: config.deepseek.apiBase,
+    apiKey: config.deepseek.apiKey,
     provider: "openaiCompatible"
 };
 
 // 初始化 OpenAI 客户端
 const openai = new OpenAI({
-    apiKey: deepseekConfig.apiKey,
-    baseURL: deepseekConfig.apiBase
+    apiKey: config.deepseek.apiKey,
+    baseURL: config.deepseek.apiBase
 });
 
 // 初始化Google AI客户端
-const genAI = new GoogleGenerativeAI("AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI"); // 请替换为您的 Google AI API Key
+const genAI = new GoogleGenerativeAI(config.google.apiKey);
 const googleModel = genAI.getGenerativeModel({ 
-    model: "gemini-pro", // 使用更稳定的模型
-    // 添加安全超时设置
-    timeout: 30000, // 30秒超时
+    model: "gemini-pro",
+    timeout: 30000,
     retry: {
         retries: 3,
         factor: 2,
@@ -58,9 +61,16 @@ const googleModel = genAI.getGenerativeModel({
 
 // 天翼AI配置
 const tianyiConfig = {
-    apiKey: 'ae230490cbe44e278ca6501c765151e3',
-    modelId: '4bd107bff85941239e27b1509eccfe98',
-    apiBase: 'https://wishub-x1.ctyun.cn/v1'
+    apiKey: config.tianyi.apiKey,
+    modelId: config.tianyi.modelId,
+    apiBase: config.tianyi.apiBase
+};
+
+// 华为云AI配置
+const huaweiConfig = {
+    apiKey: config.huawei.apiKey,
+    apiBase: config.huawei.apiBase,
+    model: config.huawei.model
 };
 
 app.use(express.static(path.join(__dirname)));
@@ -567,7 +577,42 @@ app.post('/api/chat', async (req, res) => {
     const { messages, model, temperature, top_p, max_tokens } = req.body;
 
     try {
-        if (model === 'deepseek-tianyi-ai') {
+        if (model === 'huawei-ai') {
+            // 调用华为云AI
+            const response = await fetch(`${huaweiConfig.apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${huaweiConfig.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: huaweiConfig.model,
+                    messages,
+                    temperature: temperature || 1.0,
+                    max_tokens: max_tokens || 20,
+                    stream: false
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.choices && result.choices[0]) {
+                res.json({
+                    choices: [{
+                        message: {
+                            content: result.choices[0].message.content
+                        }
+                    }]
+                });
+            } else {
+                console.error('华为云AI返回错误:', result.error);
+                res.status(500).json({
+                    error: {
+                        message: '调用华为云AI失败: ' + (result.error ? result.error.message : '未知错误')
+                    }
+                });
+            }
+        } else if (model === 'deepseek-tianyi-ai') {
             // 调用天翼AI
             const response = await fetch(`${tianyiConfig.apiBase}/chat/completions`, {
                 method: 'POST',
@@ -779,7 +824,7 @@ app.get('/api/chapter-summaries', (req, res) => {
 // 测试 Google AI API 连接
 app.get('/api/test-google-ai', async (req, res) => {
     try {
-        const apiKey = "AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI";
+        const apiKey = config.google.apiKey;
         const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
         
         // 创建 https-proxy-agent 实例
