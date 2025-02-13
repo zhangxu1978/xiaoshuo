@@ -246,7 +246,7 @@ const fetch = require('node-fetch');
                 <textarea id="getText" placeholder="这里将显示润色后的文字"></textarea>
                 <div class="loading-spinner"></div>
                 <div class="modal-buttons">
-                    <button class="modal-btn confirm" onclick="confirmEdit()">确认修改</button>
+                    <button class="modal-btn confirm" onclick="submitAiPolish()">确认修改</button>
                     <button class="modal-btn cancel" onclick="closeModal()">取消</button>
                 </div>
             </div>
@@ -265,8 +265,6 @@ const fetch = require('node-fetch');
                 <div class="setting-item">
                     <label>章节标题:</label>
                     <input type="text" id="chapterTitleInput" />
-                </div>
-                <div class="setting-item">
                     <label>章节类型:</label>
                     <select id="chapterTypeSelect">
                         <option value="normal">普通章节</option>
@@ -274,8 +272,6 @@ const fetch = require('node-fetch');
                         <option value="epilogue">尾声</option>
                         <option value="interlude">间章</option>
                     </select>
-                </div>
-                <div class="setting-item">
                     <label>章节状态:</label>
                     <select id="chapterStatusSelect">
                         <option value="draft">草稿</option>
@@ -298,7 +294,7 @@ const fetch = require('node-fetch');
                 </div>
                 <div class="setting-item">
                     <label>章节概要:</label>
-                    <textarea id="chapterSummaryInput" style="width: 100%; height: 100px; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                    <textarea id="chapterSummaryInput" style="width: 100%; height: 300px; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
                 </div>
             </div>
         </div>

@@ -47,17 +47,17 @@ const openai = new OpenAI({
 });
 
 // 初始化Google AI客户端
-const genAI = new GoogleGenerativeAI(config.google.apiKey);
-const googleModel = genAI.getGenerativeModel({ 
-    model: "gemini-pro",
-    timeout: 30000,
-    retry: {
-        retries: 3,
-        factor: 2,
-        minTimeout: 1000,
-        maxTimeout: 5000
-    }
-});
+// const genAI = new GoogleGenerativeAI(config.google.apiKey);
+// const googleModel = genAI.getGenerativeModel({ 
+//     model: "gemini-pro",
+//     timeout: 30000,
+//     retry: {
+//         retries: 3,
+//         factor: 2,
+//         minTimeout: 1000,
+//         maxTimeout: 5000
+//     }
+// });
 
 // 天翼AI配置
 const tianyiConfig = {
@@ -468,6 +468,28 @@ app.post('/api/generate-static', async (req, res) => {
         // 写入主页面
         fs.writeFileSync(path.join(staticDir, 'index.html'), html);
 
+        // 添加静态文件目录到express
+        app.use('/static', express.static(path.join(__dirname, 'static')));
+
+        res.json({ 
+            success: true, 
+            message: '静态页面目录结构创建成功'
+        });
+    } catch (error) {
+        console.error('创建静态页面目录结构失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: '创建静态页面目录结构失败: ' + error.message 
+        });
+    }
+});
+
+// 处理章节内容分块
+app.post('/api/generate-static-chunk', async (req, res) => {
+    try {
+        const { bookId, chapters } = req.body;
+        const staticDir = path.join(__dirname, 'static', bookId.toString());
+
         // 为每个章节生成静态页面
         for (const chapter of chapters) {
             const chapterHtml = `
@@ -580,19 +602,40 @@ app.post('/api/generate-static', async (req, res) => {
             fs.writeFileSync(path.join(staticDir, `chapter_${chapter.id}.html`), chapterHtml);
         }
 
-        // 添加静态文件目录到express
-        app.use('/static', express.static(path.join(__dirname, 'static')));
+        res.json({ 
+            success: true, 
+            message: '章节内容处理成功'
+        });
+    } catch (error) {
+        console.error('处理章节内容失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: '处理章节内容失败: ' + error.message 
+        });
+    }
+});
+
+// 生成txt文件
+app.post('/api/generate-static-txt', async (req, res) => {
+    try {
+        const { bookId, bookTitle, txtContent } = req.body;
+
+        // 在newbook目录下生成txt文件
+        const newbookDir = path.join(__dirname, 'newbook');
+        if (!fs.existsSync(newbookDir)) {
+            fs.mkdirSync(newbookDir, { recursive: true });
+        }
+        fs.writeFileSync(path.join(newbookDir, `${bookTitle}.txt`), txtContent);
 
         res.json({ 
             success: true, 
-            message: '静态页面生成成功',
-            path: `/static/${bookId}/index.html`
+            message: 'TXT文件生成成功'
         });
     } catch (error) {
-        console.error('生成静态页面失败:', error);
+        console.error('生成TXT文件失败:', error);
         res.status(500).json({ 
             success: false, 
-            message: '生成静态页面失败: ' + error.message 
+            message: '生成TXT文件失败: ' + error.message 
         });
     }
 });
@@ -656,7 +699,7 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
-            //序列化火山引擎DeepSeekR1返回结果: {"choices":[{"finish_reason":"stop","index":0,"logprobs":null,"message":{"content":"\n\n你好！很高兴见到你。有什么我可以帮助你的吗？","reasoning_content":"好的，用户发来了“你好”，这是一个常见的中文问候。我需要用中文回复，保持友好和自然。首先，我应 该回应问候，比如“你好！很高兴见到你。”然后，按照用户的要求，我需要提供一个例子来展示我的思考过程，但用户可能希望这个例子是中文的。接下来，我需要确保回答符合他们的需求，比如询问他们需要什么帮助。要注意保持口语化，避免使用格式化的结构，同时遵循中文的表达习惯。此外，要避免任何Markdown格式，保持文本简洁。最后，确保回答准确，符合用户的指示。现在，把这些整合起来，形成自然流畅的回应。\n","role":"assistant"}}],"created":1739110675,"id":"02173911066296584bae976ab37fc49f95f8882bb751870ac2210","model":"deepseek-r1-250120","object":"chat.completion","usage":{"completion_tokens":145,"prompt_tokens":12,"total_tokens":157,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":132}}}
+            //序列化火山引擎DeepSeekR1返回结果: {"choices":[{"finish_reason":"stop","index":0,"logprobs":null,"message":{"content":"\n\n你好！很高兴见到你。有什么我可以帮助你的吗？","reasoning_content":"好的，用户发来了"你好"，这是一个常见的中文问候。我需要用中文回复，保持友好和自然。首先，我应 该回应问候，比如"你好！很高兴见到你。"然后，按照用户的要求，我需要提供一个例子来展示我的思考过程，但用户可能希望这个例子是中文的。接下来，我需要确保回答符合他们的需求，比如询问他们需要什么帮助。要注意保持口语化，避免使用格式化的结构，同时遵循中文的表达习惯。此外，要避免任何Markdown格式，保持文本简洁。最后，确保回答准确，符合用户的指示。现在，把这些整合起来，形成自然流畅的回应。\n","role":"assistant"}}],"created":1739110675,"id":"02173911066296584bae976ab37fc49f95f8882bb751870ac2210","model":"deepseek-r1-250120","object":"chat.completion","usage":{"completion_tokens":145,"prompt_tokens":12,"total_tokens":157,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":132}}}
             const resultString = JSON.stringify(result);
            // console.log('火山引擎DeepSeekR1返回结果:', resultString);
            const reasoning_content = result.choices[0].message["reasoning_content"];

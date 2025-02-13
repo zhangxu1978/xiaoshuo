@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI小说公司</title>
+    <!-- 添加 marked.js 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+
+        .sidebar {
+            width: 300px;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            position: fixed;
+            left: -280px;
+            height: 100vh;
+            transition: left 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar:hover {
+            left: 0;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            padding-left: 40px;
+            display: flex;
+            flex-direction: column;
+            margin-left: 20px;
+        }
+
+        .employee-card {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .employee-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .employee-card.active {
+            border: 2px solid #4CAF50;
+        }
+
+        .employee-card h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .employee-card p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .chat-container {
+            flex: 1;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            height: calc(100vh - 40px);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 70px; /* 为底部输入框留出空间 */
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            position: relative;
+        }
+
+        .message .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+            text-align: center;
+            background-color: #ff4444;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 12px;
+        }
+
+        .message:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .message.employee {
+            background-color: #e3f2fd;
+            margin-right: 20%;
+        }
+
+        .message.user {
+            background-color: #f5f5f5;
+            margin-left: 20%;
+        }
+
+        .message .sender {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .input-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            gap: 10px;
+            padding: 15px 20px;
+            background-color: #fff;
+            border-top: 1px solid #eee;
+            border-radius: 0 0 10px 10px;
+            align-items: center;
+        }
+
+        .input-container input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .input-container button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .input-container button:hover {
+            background-color: #45a049;
+        }
+
+        .model-selector {
+            margin-top: 10px;
+            padding: 5px;
+            width: 100%;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .meeting-mode {
+            display: flex;
+            align-items: center;
+            margin-left: 10px;
+            white-space: nowrap;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .meeting-mode input[type="checkbox"] {
+            margin-right: 5px;
+            cursor: pointer;
+        }
+
+        .message .content {
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Markdown 样式 */
+        .message .content h1,
+        .message .content h2,
+        .message .content h3,
+        .message .content h4,
+        .message .content h5,
+        .message .content h6 {
+            margin: 15px 0;
+            color: #333;
+        }
+
+        .message .content p {
+            margin: 10px 0;
+        }
+
+        .message .content code {
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .message .content pre {
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .message .content pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .message .content blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 15px;
+            margin: 10px 0;
+            color: #666;
+        }
+
+        .message .content ul,
+        .message .content ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .message .content img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .message .content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .message .content th,
+        .message .content td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .message .content th {
+            background-color: #f4f4f4;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="employeeList">
+        <!-- 员工卡片将通过JavaScript动态生成 -->
+    </div>
+    <div class="main-content">
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <!-- 聊天消息将通过JavaScript动态添加 -->
+            </div>
+            <div class="input-container">
+                <input type="text" id="messageInput" placeholder="输入您的消息...">
+                <button onclick="sendMessage()">发送</button>
+                <div class="meeting-mode">
+                    <input type="checkbox" id="meetingMode">
+                    <label for="meetingMode">会议模式</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 员工数据
+        const employees = [
+            {
+                id: 1,
+                name: "TheMuse (创意总监)",
+                role: "创意总监",
+                description: "负责概念拓展、世界观构建、核心冲突设定、主要人物初步设定",
+                abilities: "创意生成、知识储备、风格识别与模仿、情感理解与表达"
+            },
+            {
+                id: 2,
+                name: "TheArchitect (大纲规划师)",
+                role: "大纲规划师",
+                description: "负责细化完整故事大纲，包括主要情节、次要情节、人物弧光等",
+                abilities: "结构化思维、情节设计、逻辑推理、冲突构建"
+            },
+            {
+                id: 3,
+                name: "TheWorldsmith (世界构建者)",
+                role: "世界构建者",
+                description: "负责构建小说世界的详细设定，包括地理环境、社会制度等",
+                abilities: "丰富的想象力、细节构建、逻辑自洽、知识整合"
+            },
+            {
+                id: 4,
+                name: "TheCharacterForge (角色塑造者)",
+                role: "角色塑造者",
+                description: "负责塑造丰满、立体的人物角色",
+                abilities: "人物心理分析、情感表达、对话生成、行为预测"
+            },
+            {
+                id: 5,
+                name: "TheScribe (章节写手)",
+                role: "章节写手",
+                description: "负责撰写小说的具体章节内容",
+                abilities: "优秀的写作能力、风格模仿、细节描写、情节推进"
+            },
+            {
+                id: 6,
+                name: "ThePolisher (润色编辑)",
+                role: "润色编辑",
+                description: "负责对章节进行润色、修改、校对",
+                abilities: "语言校对、文本润色、风格统一、逻辑检查"
+            },
+            {
+                id: 7,
+                name: "TheCritic (质量监控员)",
+                role: "质量监控员",
+                description: "负责监控每个阶段的输出内容质量",
+                abilities: "逻辑推理、发现不一致与错误"
+            }
+        ];
+
+        let currentEmployee = null;
+        let models = [];
+        // 添加对话历史管理
+        const conversationHistory = {};
+        // 添加会议模式历史
+        const meetingHistory = [];
+
+        // 初始化每个员工的对话历史
+        employees.forEach(employee => {
+            conversationHistory[employee.id] = [];
+        });
+
+        // 系统提示词配置
+        const systemPrompts = {
+            "TheMuse": {
+                role: "创意总监",
+                prompt: "你是一个专业的小说创意总监。你不提供与小说无关的创意。你的职责是基于用户提供的题目或初步想法，进行概念拓展、世界观构建、核心冲突设定、主要人物初步设定。你具备强大的创意生成能力、广泛的知识储备（文学、历史、文化等）、风格识别与模仿能力、情感理解与表达能力。你的任务是奠定小说的基调、风格和核心吸引力。"
+            },
+            "TheArchitect": {
+                role: "大纲规划师",
+                prompt: "你是一个专业的小说大纲规划师。你不提供与小说无关的规划。你的职责是将创意总监的想法细化为完整的故事大纲，包括主要情节、次要情节、人物弧光、关键场景、高潮与结局等。你具备结构化思维、情节设计能力、逻辑推理能力、冲突构建能力、节奏掌控能力。你的任务是确保小说有一个清晰、引人入胜的骨架。"
+            },
+            "TheWorldsmith": {
+                role: "世界构建者",
+                prompt: "你是一个专业的小说世界构建者。你的职责是负责构建小说世界的详细设定，包括地理环境、社会制度、文化习俗、魔法体系（如果适用）、科技水平等。你具备丰富的想象力、细节构建能力、逻辑自洽能力、知识整合能力。你的任务是为小说提供一个真实可信、引人入胜的背景。"
+            },
+            "TheCharacterForge": {
+                role: "角色塑造者",
+                prompt: "你是一个专业的小说角色塑造者。你的职责是负责塑造丰满、立体的人物角色，包括外貌特征、性格特点、背景故事、人物关系、动机与目标等。你具备人物心理分析能力、情感表达能力、对话生成能力、行为预测能力。你的任务是让读者与角色产生共鸣，推动情节发展。"
+            },
+            "TheScribe": {
+                role: "章节写手",
+                prompt: "你是一个专业的小说章节写手。你的职责是根据大纲和详细设定，撰写小说的具体章节内容。你具备优秀的写作能力、风格模仿能力、细节描写能力、情节推进能力。你的任务是将故事大纲转化为具体可读的文本。"
+            },
+            "ThePolisher": {
+                role: "润色编辑",
+                prompt: "你是一个专业的小说润色编辑。你的职责是对章节写手完成的初稿进行润色、修改、校对，确保文笔流畅、逻辑连贯、没有语法错误。你具备语言校对能力、文本润色能力、风格统一能力、逻辑检查能力。你的任务是提升小说的整体质量和可读性。"
+            },
+            "TheCritic": {
+                role: "质量监控员",
+                prompt: "你是一个专业的小说质量监控员。你的职责是监控每个阶段的输出内容的质量。你具备强大的逻辑推理能力，能够发现上下文的不一致与逻辑错误。你的任务是确保小说的质量和连贯性。"
+            }
+        };
+
+        // 获取模型配置
+        async function fetchModels() {
+            try {
+                const response = await fetch('key.config');
+                const data = await response.json();
+                models = data.models;
+                // 为每个员工卡片添加模型选择器
+                updateModelSelectors();
+            } catch (error) {
+                console.error('Error loading models:', error);
+            }
+        }
+
+        // 创建员工卡片
+        function createEmployeeCards() {
+            const container = document.getElementById('employeeList');
+            employees.forEach(employee => {
+                const card = document.createElement('div');
+                card.className = 'employee-card';
+                card.setAttribute('data-id', employee.id);
+                card.innerHTML = `
+                    <h3>${employee.name}</h3>
+                    <p><strong>职责：</strong>${employee.description}</p>
+                    <p><strong>能力：</strong>${employee.abilities}</p>
+                    <select class="model-selector" id="model-${employee.id}">
+                        <option value="">选择模型...</option>
+                    </select>
+                `;
+                card.addEventListener('click', () => selectEmployee(employee));
+                container.appendChild(card);
+            });
+        }
+
+        // 更新模型选择器
+        function updateModelSelectors() {
+            models.forEach(model => {
+                document.querySelectorAll('.model-selector').forEach(selector => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.name;
+                    selector.appendChild(option);
+                });
+            });
+        }
+
+        // 选择员工
+        function selectEmployee(employee) {
+            document.querySelectorAll('.employee-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            document.querySelector(`[data-id="${employee.id}"]`).classList.add('active');
+            currentEmployee = employee;
+            
+            // 切换员工时更新对话显示
+            updateChatDisplay(employee.id);
+        }
+
+        // 更新对话显示
+        function updateChatDisplay(employeeId) {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = ''; // 清空当前显示
+            
+            const isMeetingMode = document.getElementById('meetingMode').checked;
+            const history = isMeetingMode ? meetingHistory : (conversationHistory[employeeId] || []);
+            
+            history.forEach(message => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${message.type}`;
+                
+                const formattedContent = marked.parse(message.text);
+                
+                messageDiv.innerHTML = `
+                    <div class="delete-btn" onclick="deleteMessage(this.parentElement, ${message.timestamp})">×</div>
+                    <div class="sender">${message.sender}</div>
+                    <div class="content">${formattedContent}</div>
+                `;
+                container.appendChild(messageDiv);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 发送消息
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (message && currentEmployee) {
+                addMessage('用户', message, 'user');
+                const modelSelector = document.getElementById(`model-${currentEmployee.id}`);
+                const selectedModel = modelSelector.value;
+                
+                try {
+                    let response;
+                    let aiResponse;
+                    
+                    // 获取当前会话历史
+                    const isMeetingMode = document.getElementById('meetingMode').checked;
+                    const currentHistory = isMeetingMode ? meetingHistory : conversationHistory[currentEmployee.id];
+                    
+                    // 转换历史记录格式
+                    const messageHistory = currentHistory.map(msg => ({
+                        role: msg.type === 'user' ? 'user' : 'assistant',
+                        content: msg.text
+                    }));
+                    
+                    if (selectedModel === 'google-ai') {
+                        const systemPrompt = systemPrompts[currentEmployee.name.split(' ')[0]].prompt;
+                        
+                        // 将历史消息转换为Google AI格式
+                        let googleaiformat = [];
+                        // 添加系统提示词
+                        googleaiformat.push({
+                            "role": "user",
+                            "parts": [{"text": systemPrompt}]
+                        });
+                        
+                        // 添加历史消息
+                        for(let msg of messageHistory) {
+                            googleaiformat.push({
+                                "role": msg.role === "user" ? "user" : "model",
+                                "parts": [{"text": msg.content}]
+                            });
+                        }
+                        
+                        // 添加当前消息
+                        googleaiformat.push({
+                            "role": "user",
+                            "parts": [{"text": message}]
+                        });
+
+                        const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
+                        response = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                contents: googleaiformat
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.candidates && result.candidates[0] && result.candidates[0].content) {
+                            aiResponse = result.candidates[0].content.parts[0].text;
+                        }
+                    } else {
+                        // 其他模型通过服务器处理
+                        response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                messages: [
+                                    {
+                                        role: "system",
+                                        content: systemPrompts[currentEmployee.name.split(' ')[0]].prompt
+                                    },
+                                    ...messageHistory,
+                                    {
+                                        role: "user",
+                                        content: message
+                                    }
+                                ],
+                                model: selectedModel,
+                                temperature: 0.7,
+                                top_p: 0.9,
+                                max_tokens: 8000
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.choices && result.choices[0]) {
+                            aiResponse = result.choices[0].message.content;
+                        }
+                    }
+                    
+                    if (aiResponse) {
+                        addMessage(currentEmployee.name, aiResponse, 'employee');
+                    } else {
+                        addMessage(currentEmployee.name, '抱歉，我暂时无法回应，请稍后再试。', 'employee');
+                    }
+                } catch (error) {
+                    console.error('AI响应失败:', error);
+                    addMessage(currentEmployee.name, '抱歉，发生了错误，请稍后再试。', 'employee');
+                }
+                
+                input.value = '';
+            }
+        }
+
+        // 添加消息到聊天界面
+        function addMessage(sender, text, type) {
+            if (!currentEmployee) return;
+
+            // 创建消息对象
+            const message = {
+                sender,
+                text,
+                type,
+                timestamp: new Date().getTime()
+            };
+
+            // 根据是否是会议模式添加到不同的历史记录中
+            const isMeetingMode = document.getElementById('meetingMode').checked;
+            if (isMeetingMode) {
+                meetingHistory.push(message);
+            } else {
+                conversationHistory[currentEmployee.id].push(message);
+            }
+
+            // 更新显示
+            updateChatDisplay(currentEmployee.id);
+        }
+
+        // 删除消息
+        function deleteMessage(messageElement, timestamp) {
+            const isMeetingMode = document.getElementById('meetingMode').checked;
+            
+            if (isMeetingMode) {
+                // 从会议模式历史中删除
+                const index = meetingHistory.findIndex(msg => msg.timestamp === timestamp);
+                if (index !== -1) {
+                    meetingHistory.splice(index, 1);
+                }
+            } else if (currentEmployee) {
+                // 从普通对话历史中删除
+                const index = conversationHistory[currentEmployee.id].findIndex(msg => msg.timestamp === timestamp);
+                if (index !== -1) {
+                    conversationHistory[currentEmployee.id].splice(index, 1);
+                }
+            }
+            
+            // 从DOM中移除消息元素
+            messageElement.remove();
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            createEmployeeCards();
+            fetchModels();
+            
+            // 添加回车发送功能
+            document.getElementById('messageInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+
+            // 添加会议模式切换监听
+            document.getElementById('meetingMode').addEventListener('change', (e) => {
+                if (currentEmployee) {
+                    updateChatDisplay(currentEmployee.id);
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

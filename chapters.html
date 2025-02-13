@@ -497,7 +497,7 @@
 </body>
 </html>`;
 
-                // 发送请求到服务器生成静态文件
+                // 首先创建静态页面目录结构
                 const response = await fetch('/api/generate-static', {
                     method: 'POST',
                     headers: {
@@ -506,15 +506,65 @@
                     body: JSON.stringify({
                         bookId: bookId,
                         html: staticHtml,
-                        chapters: chapters
+                        chapters: chapters.map(chapter => ({
+                            id: chapter.id,
+                            title: chapter.title
+                        }))
                     })
                 });
 
                 const result = await response.json();
-                if (result.success) {
-                    alert('静态页面生成成功！访问路径：/static/' + bookId + '/index.html');
+                if (!result.success) {
+                    throw new Error(result.message);
+                }
+
+                // 分块处理章节内容
+                const CHUNK_SIZE = 5; // 每次处理5个章节
+                for (let i = 0; i < chapters.length; i += CHUNK_SIZE) {
+                    const chapterChunk = chapters.slice(i, i + CHUNK_SIZE);
+                    
+                    // 发送章节内容
+                    const chunkResponse = await fetch('/api/generate-static-chunk', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            bookId: bookId,
+                            chapters: chapterChunk
+                        })
+                    });
+
+                    const chunkResult = await chunkResponse.json();
+                    if (!chunkResult.success) {
+                        throw new Error(chunkResult.message);
+                    }
+                }
+
+                // 生成txt文件
+                let txtContent = `${book.title}\n\n`;
+                for (const chapter of chapters) {
+                    txtContent += `${chapter.title}\n\n${chapter.content}\n\n`;
+                }
+
+                // 发送txt内容
+                const txtResponse = await fetch('/api/generate-static-txt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bookId: bookId,
+                        bookTitle: book.title,
+                        txtContent: txtContent
+                    })
+                });
+
+                const txtResult = await txtResponse.json();
+                if (txtResult.success) {
+                    alert('静态页面生成成功！\n访问路径：/static/' + bookId + '/index.html\nTXT文件路径：/newbook/' + book.title + '.txt');
                 } else {
-                    alert('生成静态页面失败: ' + result.message);
+                    alert('生成TXT文件失败: ' + txtResult.message);
                 }
             } catch (error) {
                 console.error('生成静态页面失败:', error);
