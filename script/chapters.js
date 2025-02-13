@@ -418,30 +418,10 @@ function toggleMinimize(event) {
     }
 }
 
-// 在模态框中生成世界观
-async function generateModalWorldView() {
-    const modelSelect = document.getElementById('modalModelSelect');
-    const novelTypeSelect = document.getElementById('modalNovelTypeSelect');
-    const selectedModel = modelSelect.value;
-    const novelType = novelTypeSelect.value;
-    const modalText = document.getElementById('modalText');
-
-    // 构建提示词
-    const prompt = `请你作为一个专业的小说策划师，为我构建一个完整的${novelType}类型小说的世界观设定。
-需要包含以下要素：
-1. 世界背景：整体世界观的基本设定，包括时代背景、空间结构等
-2. 核心法则：该世界运行的基本规则，如修炼体系、科技水平、力量体系等
-3. 主要势力：世界中的主要势力分布和特点
-4. 特殊元素：独特的物品、生物、现象等
-5. 文明特征：世界中的文明发展水平、文化特点等
-6. 冲突源：潜在的矛盾点和冲突来源
-
-请详细描述每个方面，使其既符合${novelType}小说的特点，又具有独特性和创新性。`;
-
+// 通用的大模型调用函数
+async function callLargeModel(modelId, prompt) {
     try {
-        modalText.value = '正在生成世界观设定...';
-        
-        if (selectedModel === 'google-ai') {
+        if (modelId === 'google-ai') {
             // 调用谷歌 AI API
             const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
             const response = await fetch(url, {
@@ -459,9 +439,7 @@ async function generateModalWorldView() {
 
             const result = await response.json();
             if (result.candidates && result.candidates[0] && result.candidates[0].content) {
-                modalText.value = result.candidates[0].content.parts[0].text;
-            } else {
-                modalText.value = '生成失败：未获取到有效响应';
+                return result.candidates[0].content.parts[0].text;
             }
         } else {
             // 其他模型通过服务器处理
@@ -474,14 +452,14 @@ async function generateModalWorldView() {
                     messages: [
                         {
                             role: "system",
-                            content: config.systemPrompts.novel
+                            content: config.systemPrompts[getSystemPromptType(prompt)]
                         },
                         {
                             role: "user",
                             content: prompt
                         }
                     ],
-                    model: selectedModel,
+                    model: modelId,
                     temperature: 0.7,
                     top_p: 0.9,
                     max_tokens: 8000
@@ -490,18 +468,60 @@ async function generateModalWorldView() {
 
             const result = await response.json();
             if (result.choices && result.choices[0]) {
-                modalText.value = result.choices[0].message.content;
-            } else {
-                modalText.value = '生成失败：未获取到有效响应';
+                return result.choices[0].message.content;
             }
         }
+        throw new Error('未获取到有效响应');
     } catch (error) {
-        console.error('生成世界观失败:', error);
+        console.error('调用大模型失败:', error);
+        throw error;
+    }
+}
+
+// 根据提示词类型获取对应的系统提示词
+function getSystemPromptType(prompt) {
+    if (prompt.includes('小说策划师') && prompt.includes('世界观设定')) {
+        return 'novel';
+    } else if (prompt.includes('小说策划师') && prompt.includes('人物设定')) {
+        return 'novel-character';
+    } else if (prompt.includes('小说策划师') && prompt.includes('章节目录')) {
+        return 'novel-timeline';
+    } else if (prompt.includes('小说重构助手')) {
+        return 'reconstructor';
+    } else if (prompt.includes('专业小说作家')) {
+        return 'writer';
+    }
+    return 'novel'; // 默认返回
+}
+
+// 修改生成世界观函数
+async function generateModalWorldView() {
+    const modelSelect = document.getElementById('modalModelSelect');
+    const novelTypeSelect = document.getElementById('modalNovelTypeSelect');
+    const selectedModel = modelSelect.value;
+    const novelType = novelTypeSelect.value;
+    const modalText = document.getElementById('modalText');
+
+    const prompt = `请你作为一个专业的小说策划师，为我构建一个完整的${novelType}类型小说的世界观设定。
+需要包含以下要素：
+1. 世界背景：整体世界观的基本设定，包括时代背景、空间结构等
+2. 核心法则：该世界运行的基本规则，如修炼体系、科技水平、力量体系等
+3. 主要势力：世界中的主要势力分布和特点
+4. 特殊元素：独特的物品、生物、现象等
+5. 文明特征：世界中的文明发展水平、文化特点等
+6. 冲突源：潜在的矛盾点和冲突来源
+
+请详细描述每个方面，使其既符合${novelType}小说的特点，又具有独特性和创新性。`;
+
+    try {
+        modalText.value = '正在生成世界观设定...';
+        modalText.value = await callLargeModel(selectedModel, prompt);
+    } catch (error) {
         modalText.value = '生成世界观失败，请重试';
     }
 }
 
-// 添加生成人物的函数
+// 修改生成人物设定函数
 async function generateCharacters() {
     const modelSelect = document.getElementById('characterModelSelect');
     const includeWorldView = document.getElementById('includeWorldView');
@@ -519,7 +539,6 @@ async function generateCharacters() {
         }
     }
 
-    // 构建提示词
     const prompt = `请你作为一个专业的小说策划师，${includeWorldView.checked ? '基于以下世界观：\n\n' + worldViewContent + '\n\n' : ''}为我构建一组完整的小说人物设定。
 需要包含以下要素：
 1. 主要人物：详细描述每个主要人物的性格特征、背景故事、能力特点等
@@ -533,63 +552,8 @@ async function generateCharacters() {
 
     try {
         modalText.value = '正在生成人物设定...';
-        
-        if (selectedModel === 'google-ai') {
-            // 调用谷歌 AI API
-            const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        role: "user",
-                        parts: [{ text: prompt }]
-                    }]
-                })
-            });
-
-            const result = await response.json();
-            if (result.candidates && result.candidates[0] && result.candidates[0].content) {
-                modalText.value = result.candidates[0].content.parts[0].text;
-            } else {
-                modalText.value = '生成失败：未获取到有效响应';
-            }
-        } else {
-            // 其他模型通过服务器处理
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    messages: [
-                        {
-                            role: "system",
-                            content:config.systemPrompts.novel-character
-                        },
-                        {
-                            role: "user",
-                            content: prompt
-                        }
-                    ],
-                    model: selectedModel,
-                    temperature: 0.7,
-                    top_p: 0.9,
-                    max_tokens: 8000
-                })
-            });
-
-            const result = await response.json();
-            if (result.choices && result.choices[0]) {
-                modalText.value = result.choices[0].message.content;
-            } else {
-                modalText.value = '生成失败：未获取到有效响应';
-            }
-        }
+        modalText.value = await callLargeModel(selectedModel, prompt);
     } catch (error) {
-        console.error('生成人物设定失败:', error);
         modalText.value = '生成人物设定失败，请重试';
     }
 }
@@ -889,7 +853,6 @@ async function startReconstruct() {
         // 构建上下文信息
         let context = '';
         
-        // 如果需要加载世界观
         if (loadWorldview) {
             try {
                 const worldviewResponse = await fetch(`/api/settings/environment?bookId=${bookId}`);
@@ -902,7 +865,6 @@ async function startReconstruct() {
             }
         }
 
-        // 获取前后章节摘要
         if (prevCount > 0 || nextCount > 0) {
             try {
                 const summaryResponse = await fetch(`/api/chapter-summaries?bookId=${bookId}&chapterId=${chapterId}&prevCount=${prevCount}&nextCount=${nextCount}`);
@@ -915,21 +877,7 @@ async function startReconstruct() {
             }
         }
 
-        // 发送重构请求
-        let reconstructedContent = '';
-        if (modelSelect.value === 'google-ai') {
-            // 调用谷歌 AI API
-            const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        role: "user",
-                        parts: [{ 
-                            text: `你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。
+        const prompt = `你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。
 
 ${context}
 
@@ -937,50 +885,9 @@ ${context}
 ${currentContent}
 
 重构要求：
-${requirements}` 
-                        }]
-                    }]
-                })
-            });
+${requirements}`;
 
-            const result = await response.json();
-            if (result.candidates && result.candidates[0] && result.candidates[0].content) {
-                reconstructedContent = result.candidates[0].content.parts[0].text;
-            } else {
-                throw new Error('未获取到有效响应');
-            }
-        } else {
-            // 其他模型通过服务器处理
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    messages: [
-                        {
-                            role: "system",
-                            content: config.systemPrompts.reconstructor
-                        },
-                        {
-                            role: "user",
-                            content: `${context}原章节内容：\n${currentContent}\n\n重构要求：\n${requirements}`
-                        }
-                    ],
-                    model: modelSelect.value,
-                    temperature: 0.7,
-                    top_p: 0.9,
-                    max_tokens: 8000
-                })
-            });
-
-            const result = await response.json();
-            if (result.choices && result.choices[0]) {
-                reconstructedContent = result.choices[0].message.content;
-            } else {
-                throw new Error('未获取到有效响应');
-            }
-        }
+        const reconstructedContent = await callLargeModel(modelSelect.value, prompt);
 
         // 保存重构后的内容
         await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`, {
@@ -1053,50 +960,50 @@ document.addEventListener('DOMContentLoaded', loadModelConfig);
 // iframe加载完成后也发送配置
 document.getElementById('aiFrame').addEventListener('load', loadModelConfig);
 
-        // 重新生成章节内容
-        async function regenerateChapters() {
-            const startChapter = parseInt(document.getElementById('startChapter').value);
-            const endChapter = parseInt(document.getElementById('endChapter').value);
-            const wordCount = parseInt(document.getElementById('chapterWordCount').value);
-            const modelSelect = document.getElementById('timelineModelSelect');
-            const selectedModel = modelSelect.value;
+// 修改章节生成函数
+async function regenerateChapters() {
+    const startChapter = parseInt(document.getElementById('startChapter').value);
+    const endChapter = parseInt(document.getElementById('endChapter').value);
+    const wordCount = parseInt(document.getElementById('chapterWordCount').value);
+    const modelSelect = document.getElementById('timelineModelSelect');
+    const selectedModel = modelSelect.value;
 
-            if (!startChapter || !endChapter || !wordCount) {
-                alert('请填写完整的章节范围和字数要求');
-                return;
+    if (!startChapter || !endChapter || !wordCount) {
+        alert('请填写完整的章节范围和字数要求');
+        return;
+    }
+
+    if (startChapter > endChapter) {
+        alert('开始章节不能大于结束章节');
+        return;
+    }
+
+    try {
+        // 获取世界观
+        const worldviewResponse = await fetch(`/api/settings/environment?bookId=${bookId}`);
+        const worldviewData = await worldviewResponse.json();
+        const worldview = worldviewData.value || '';
+
+        // 获取人物设定
+        const charactersResponse = await fetch(`/api/settings/characters?bookId=${bookId}`);
+        const charactersData = await charactersResponse.json();
+        const characters = charactersData.value || '';
+
+        // 获取所有章节摘要
+        const summaryResponse = await fetch(`/api/chapter-summaries?bookId=${bookId}&chapterId=${startChapter}&prevCount=${startChapter-1}&nextCount=${endChapter-startChapter}`);
+        const summaryData = await summaryResponse.json();
+        const summaries = summaryData.summaries || [];
+
+        // 逐章生成内容
+        for (let currentChapter = startChapter; currentChapter <= endChapter; currentChapter++) {
+            const chapterSummary = summaries.find(s => s.startsWith(`${currentChapter}，`));
+            
+            if (!chapterSummary) {
+                console.error(`未找到第${currentChapter}章的摘要`);
+                continue;
             }
 
-            if (startChapter > endChapter) {
-                alert('开始章节不能大于结束章节');
-                return;
-            }
-
-            try {
-                // 获取世界观
-                const worldviewResponse = await fetch(`/api/settings/environment?bookId=${bookId}`);
-                const worldviewData = await worldviewResponse.json();
-                const worldview = worldviewData.value || '';
-
-                // 获取人物设定
-                const charactersResponse = await fetch(`/api/settings/characters?bookId=${bookId}`);
-                const charactersData = await charactersResponse.json();
-                const characters = charactersData.value || '';
-
-                // 获取所有章节摘要
-                const summaryResponse = await fetch(`/api/chapter-summaries?bookId=${bookId}&chapterId=${startChapter}&prevCount=${startChapter-1}&nextCount=${endChapter-startChapter}`);
-                const summaryData = await summaryResponse.json();
-                const summaries = summaryData.summaries || [];
-
-                // 逐章生成内容
-                for (let currentChapter = startChapter; currentChapter <= endChapter; currentChapter++) {
-                    const chapterSummary = summaries.find(s => s.startsWith(`${currentChapter}，`));
-                    
-                    if (!chapterSummary) {
-                        console.error(`未找到第${currentChapter}章的摘要`);
-                        continue;
-                    }
-
-                    const prompt = `作为一位专业小说作家，请根据以下信息创作小说章节：
+            const prompt = `作为一位专业小说作家，请根据以下信息创作小说章节：
 
 世界观设定：
 ${worldview}
@@ -1119,81 +1026,34 @@ ${summaries.join('\n')}
 
 请开始创作第${currentChapter}章的内容：`;
 
-                    let chapterContent = '';
-                    
-                    if (selectedModel === 'google-ai') {
-                        const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                contents: [{
-                                    role: "user",
-                                    parts: [{ text: prompt }]
-                                }]
-                            })
-                        });
+            try {
+                const chapterContent = await callLargeModel(selectedModel, prompt);
 
-                        const result = await response.json();
-                        if (result.candidates && result.candidates[0] && result.candidates[0].content) {
-                            chapterContent = result.candidates[0].content.parts[0].text;
-                        }
-                    } else {
-                        const response = await fetch('/api/chat', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                messages: [
-                                    {
-                                        role: "system",
-                                        content: config.systemPrompts.writer
-                                    },
-                                    {
-                                        role: "user",
-                                        content: prompt
-                                    }
-                                ],
-                                model: selectedModel,
-                                temperature: 0.7,
-                                top_p: 0.9,
-                                max_tokens: 8000
-                            })
-                        });
+                // 保存章节内容
+                await fetch(`/api/chapters/${currentChapter}?bookId=${bookId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: chapterContent
+                    })
+                });
 
-                        const result = await response.json();
-                        if (result.choices && result.choices[0]) {
-                            chapterContent = result.choices[0].message.content;
-                        }
-                    }
-
-                    if (chapterContent) {
-                        // 保存章节内容
-                        await fetch(`/api/chapters/${currentChapter}?bookId=${bookId}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                content: chapterContent
-                            })
-                        });
-
-                        console.log(`第${currentChapter}章生成完成`);
-                        
-                        // 等待10秒后继续下一章
-                        if (currentChapter < endChapter) {
-                            await new Promise(resolve => setTimeout(resolve, 10000));
-                        }
-                    }
+                console.log(`第${currentChapter}章生成完成`);
+                
+                // 等待10秒后继续下一章
+                if (currentChapter < endChapter) {
+                    await new Promise(resolve => setTimeout(resolve, 10000));
                 }
-
-                alert('章节生成完成！');
             } catch (error) {
-                console.error('生成章节失败:', error);
-                alert('生成章节失败，请重试');
+                console.error(`生成第${currentChapter}章失败:`, error);
             }
         }
+
+        alert('章节生成完成！');
+    } catch (error) {
+        console.error('生成章节失败:', error);
+        alert('生成章节失败，请重试');
+    }
+}
