@@ -24,7 +24,7 @@ const settingsDir = path.join(__dirname, 'settings');
 try {
     if (!fs.existsSync(settingsDir)) {
         fs.mkdirSync(settingsDir, { recursive: true });
-        console.log('创建settings目录成功:', settingsDir);
+       // console.log('创建settings目录成功:', settingsDir);
     }
 } catch (error) {
     console.error('创建settings目录失败:', error);
@@ -99,7 +99,8 @@ const siliconflowDeepseekV3Config = {
     model: config.siliconflowDeepseekV3.model
 };
 app.use(express.static(path.join(__dirname)));
-app.use(bodyParser.json());
+app.use(bodyParser.json({limit: '50mb'}));
+app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 app.use(session({
     secret: 'your-secret-key',
     resave: false,
@@ -280,9 +281,9 @@ function readChapters(bookId) {
 function saveChapters(bookId, chapters) {
     try {
         const filePath = path.join(__dirname, `chapters_${bookId}.json`);
-        console.log('保存章节数据到:', filePath);
+       // console.log('保存章节数据到:', filePath);
         fs.writeFileSync(filePath, JSON.stringify(chapters, null, 2), 'utf8');
-        console.log('章节数据保存成功');
+       // console.log('章节数据保存成功'+new Date().toISOString());
     } catch (error) {
         console.error('保存章节数据失败:', error);
         throw error;
@@ -419,13 +420,21 @@ app.post('/api/chapter-settings', (req, res) => {
 
         // 更新章节数据
         const chapters = readChapters(numericBookId);
-        console.log('读取到的章节数据:', chapters);
+      //  console.log('读取到的章节数据:', chapters);
         
         const chapterIndex = chapters.findIndex(c => c.id === numericChapterId);
-        console.log('查找章节索引:', chapterIndex, '章节ID:', numericChapterId);
+       // console.log('查找章节索引:', chapterIndex, '章节ID:', numericChapterId);
         
         if (chapterIndex === -1) {
-            throw new Error(`找不到章节(ID: ${numericChapterId})`);
+            //如果章节不存在，生成章节
+            const newChapter = {    
+                id: numericChapterId,
+                title: title,
+                content: '',
+                createTime: new Date().toISOString()
+            };
+            chapters.push(newChapter);
+            saveChapters(numericBookId, chapters);
         }
         
         // 更新章节标题
@@ -663,7 +672,7 @@ app.post('/api/chat', async (req, res) => {
             });
 
             const result = await response.json();
-            console.log('华为云AI返回结果:', result);
+           // console.log('华为云AI返回结果:', result);
             if (result.choices && result.choices[0]) {
                 res.json({
                     choices: [{
@@ -731,7 +740,7 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
-            console.log('火山引擎DeepSeek返回结果:', result);
+           // console.log('火山引擎DeepSeek返回结果:', result);
             res.json({
                 choices: [{
                     message: {
@@ -796,7 +805,7 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
-            console.log('硅基流动deepseekR1返回结果:', result);
+           // console.log('硅基流动deepseekR1返回结果:', result);
             res.json({
                 choices: [{
                     message: {
@@ -823,7 +832,7 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
-            console.log('硅基流动deepseekV3返回结果:', result);
+          //  console.log('硅基流动deepseekV3返回结果:', result);
             res.json({
                 choices: [{
                     message: {
@@ -851,10 +860,10 @@ function readChapterSettings(bookId, chapterId) {
     try {
         // 使用绝对路径
         const filePath = path.resolve(__dirname, 'settings', `chapter_settings_${bookId}_${chapterId}.json`);
-        console.log('尝试读取章节设定从:', filePath);
+       // console.log('尝试读取章节设定从:', filePath);
         
         if (!fs.existsSync(filePath)) {
-            console.log('文件不存在，返回默认设定');
+        //    console.log('文件不存在，返回默认设定');
             return {
                 type: 'normal',
                 status: 'draft',
@@ -880,16 +889,16 @@ function saveChapterSettings(bookId, chapterId, data) {
         const settingsDir = path.resolve(__dirname, 'settings');
         if (!fs.existsSync(settingsDir)) {
             fs.mkdirSync(settingsDir, { recursive: true });
-            console.log('创建settings目录成功:', settingsDir);
+           // console.log('创建settings目录成功:', settingsDir);
         }
 
         // 构建文件路径
         const filePath = path.join(settingsDir, `chapter_settings_${bookId}_${chapterId}.json`);
-        console.log('准备保存章节设定到:', filePath);
+        //console.log('准备保存章节设定到:', filePath);
         
         // 保存文件
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-        console.log(`成功保存章节设定到: ${filePath}`);
+        //console.log(`成功保存章节设定到: ${filePath}`);
         
         // 验证文件是否成功创建
         if (fs.existsSync(filePath)) {
@@ -980,7 +989,7 @@ app.get('/api/chapter-summaries', (req, res) => {
         }
 
         // 获取后面章节的摘要
-        for (let i = currentChapterIndex + 1; i <= currentChapterIndex + numericNextCount; i++) {
+        for (let i = currentChapterIndex ; i <= currentChapterIndex + numericNextCount; i++) {
             if (i < chapters.length) {
                 const settings = readChapterSettings(numericBookId, chapters[i].id);
                 if (settings && settings.summary) {

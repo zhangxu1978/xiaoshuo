@@ -622,63 +622,7 @@ ${characters}
 
         modalText.value = '正在生成章节目录...';
 
-        let response;
-        let result;
-
-        if (selectedModel === 'google-ai') {
-            // 调用谷歌 AI API
-            const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
-            response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        role: "user",
-                        parts: [{ text: prompt }]
-                    }]
-                })
-            });
-            result = await response.json();
-            if (result.candidates && result.candidates[0] && result.candidates[0].content) {
-                modalText.value = result.candidates[0].content.parts[0].text;
-                await generateSummariesFromOutline(modalText.value);
-            } else {
-                modalText.value = '生成失败：未获取到有效响应';
-            }
-        } else {
-            // 其他模型通过服务器处理
-            response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    messages: [
-                        {
-                            role: "system",
-                            content:config.systemPrompts.novel-timeline
-                        },
-                        {
-                            role: "user",
-                            content: prompt
-                        }
-                    ],
-                    model: selectedModel,
-                    temperature: 0.7,
-                    top_p: 0.9,
-                    max_tokens: 8000
-                })
-            });
-            result = await response.json();
-            if (result.choices && result.choices[0]) {
-                modalText.value = result.choices[0].message.content;
-                await generateSummariesFromOutline(modalText.value);
-            } else {
-                modalText.value = '生成失败：未获取到有效响应';
-            }
-        }
+        modalText.value  = await callLargeModel(selectedModel, prompt);
     } catch (error) {
         console.error('生成章节目录失败:', error);
         modalText.value = '生成章节目录失败，请重试';
@@ -877,7 +821,7 @@ async function startReconstruct() {
             }
         }
 
-        const prompt = `你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。
+        const prompt = `你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对第${chapterId}章内容进行重构。保持故事的连贯性和整体性。
 
 ${context}
 
@@ -886,7 +830,7 @@ ${currentContent}
 
 重构要求：
 ${requirements}`;
-
+console.log(prompt);
         const reconstructedContent = await callLargeModel(modelSelect.value, prompt);
 
         // 保存重构后的内容
@@ -990,18 +934,18 @@ async function regenerateChapters() {
         const characters = charactersData.value || '';
 
         // 获取所有章节摘要
-        const summaryResponse = await fetch(`/api/chapter-summaries?bookId=${bookId}&chapterId=${startChapter}&prevCount=${startChapter-1}&nextCount=${endChapter-startChapter}`);
+        const summaryResponse = await fetch(`/api/chapter-summaries?bookId=${bookId}&chapterId=${startChapter}&prevCount=${startChapter-1}&nextCount=${endChapter-1}`);
         const summaryData = await summaryResponse.json();
         const summaries = summaryData.summaries || [];
 
         // 逐章生成内容
         for (let currentChapter = startChapter; currentChapter <= endChapter; currentChapter++) {
-            const chapterSummary = summaries.find(s => s.startsWith(`${currentChapter}，`));
+            // const chapterSummary = summaries.find(s => s.startsWith(`${currentChapter}，`));
             
-            if (!chapterSummary) {
-                console.error(`未找到第${currentChapter}章的摘要`);
-                continue;
-            }
+            // if (!chapterSummary) {
+            //     console.error(`未找到第${currentChapter}章的摘要`);
+            //     continue;
+            // }
 
             const prompt = `作为一位专业小说作家，请根据以下信息创作小说章节：
 
@@ -1036,12 +980,13 @@ ${summaries.join('\n')}
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
+                        title: `第${currentChapter}章`,
                         content: chapterContent
                     })
                 });
 
                 console.log(`第${currentChapter}章生成完成`);
-                
+                document.getElementById('regenerateChapter').innerHTML = currentChapter;
                 // 等待10秒后继续下一章
                 if (currentChapter < endChapter) {
                     await new Promise(resolve => setTimeout(resolve, 10000));

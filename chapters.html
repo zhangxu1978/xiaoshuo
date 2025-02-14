@@ -38,9 +38,23 @@
                     <option value="仙侠">仙侠</option>
                     <option value="科幻">科幻</option>
                     <option value="都市">都市</option>
+                    <option value="架空">架空</option>
+                    <option value="穿越">穿越</option>
+                    <option value="重生">重生</option>
+                    <option value="无限流">无限流</option>
+                    <option value="系统流">系统流</option>
+                    <option value="无敌流">无敌流</option>
                     <option value="历史">历史</option>
+                    <option value="现代">现代</option>
                     <option value="奇幻">奇幻</option>
+                    <option value="末世">末世</option>
+                    <option value="蒸汽">蒸汽</option>
+                    <option value="魔法">魔法</option>
                     <option value="武侠">武侠</option>
+                    <option value="修仙">修仙</option>
+                    <option value="军事">军事</option>
+                    <option value="赛博">赛博</option>
+                    <option value="灵异">灵异</option>
                     <option value="游戏">游戏</option>
                 </select>
                 <button onclick="generateModalWorldView()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">获取世界观</button>
@@ -65,6 +79,7 @@
                     <input type="number" id="endChapter" placeholder="结束章节" style="width: 80px; padding: 5px; margin-right: 10px;" min="1"/>
                     <input type="number" id="chapterWordCount" placeholder="每章字数" style="width: 80px; padding: 5px; margin-right: 10px;" min="1000" value="2000"/>
                     <button onclick="regenerateChapters()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">重新生成章节</button>
+                    第<span id="regenerateChapter">1</span>章生成完成
                 </div>
             
             </div>
