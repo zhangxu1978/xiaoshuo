@@ -9,9 +9,9 @@
 <body>
     <button class="back-btn" onclick="window.location.href='/bookshelf.html'">返回书架</button>
     <button class="setting-btn" onclick="showModal('environment')">世界设定</button>
-    <button class="setting-btn" onclick="showModal('worldTimeline')">世界时间线</button>
+    <button class="setting-btn" onclick="showModal('worldTimeline')">故事大纲</button>
     <button class="setting-btn" onclick="showModal('characters')">人物设定</button>
-    <button class="setting-btn" onclick="showModal('characterTimeline')">人物时间线</button>
+    <button class="setting-btn" onclick="showModal('characterTimeline')">章节设定</button>
     <button class="setting-btn" onclick="showModal('items')">物品设定</button>
     <button class="setting-btn" onclick="generateStaticPage()">生成静态页面</button>
     <button class="setting-btn" onclick="showAiModal()">问问ai</button>
@@ -46,6 +46,7 @@
                     <option value="无敌流">无敌流</option>
                     <option value="历史">历史</option>
                     <option value="现代">现代</option>
+                    <option value="女性现代职场">女性现代职场</option>
                     <option value="奇幻">奇幻</option>
                     <option value="末世">末世</option>
                     <option value="蒸汽">蒸汽</option>
@@ -56,6 +57,14 @@
                     <option value="赛博">赛博</option>
                     <option value="灵异">灵异</option>
                     <option value="游戏">游戏</option>
+                    <option value="现代爱情">现代爱情</option>
+                    <option value="古代爱情">古代爱情</option>
+                    <option value="科幻爱情">科幻爱情</option>
+                    <option value="宫斗">宫斗</option>
+                    <option value="权谋">权谋</option>
+                    <option value="重生">重生</option>
+                    <option value="宅斗">宅斗</option>
+                    <option value="种田">种田</option>
                 </select>
                 <button onclick="generateModalWorldView()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">获取世界观</button>
             </div>
@@ -82,6 +91,16 @@
                     第<span id="regenerateChapter">1</span>章生成完成
                 </div>
             
+            </div>
+            <div id="worldTimelineControls" style="margin-bottom: 10px; display: none;">
+                <select id="worldTimelineModelSelect" style="padding: 5px; margin-right: 10px;">
+                    <!-- 模型选项将通过JavaScript动态加载 -->
+                </select>
+                <input type="checkbox" id="includeWorldViewForTimeline" checked style="margin-right: 5px;">
+                <label for="includeWorldViewForTimeline" style="margin-right: 10px;">加载世界观</label>
+                <input type="checkbox" id="includeCharactersForTimeline" checked style="margin-right: 5px;">
+                <label for="includeCharactersForTimeline" style="margin-right: 10px;">加载人物设定</label>
+                <button onclick="generateWorldTimeline()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">构建故事大纲</button>
             </div>
             <textarea id="modalText" style="width: 100%; height: 80%;"></textarea>
             <button onclick="saveModalContent()">保存</button>

@@ -103,6 +103,7 @@ function showModal(type) {
     const modalControls = document.getElementById('modalControls');
     const characterControls = document.getElementById('characterControls');
     const timelineControls = document.getElementById('timelineControls');
+    const worldTimelineControls = document.getElementById('worldTimelineControls');
     modal.style.display = 'block';
     modalTitle.textContent = type + ' 设定';
     
@@ -110,6 +111,7 @@ function showModal(type) {
     modalControls.style.display = type === 'environment' ? 'block' : 'none';
     characterControls.style.display = type === 'characters' ? 'block' : 'none';
     timelineControls.style.display = type === 'characterTimeline' ? 'block' : 'none';
+    worldTimelineControls.style.display = type === 'worldTimeline' ? 'block' : 'none';
     
     fetch(`/api/settings/${type}?bookId=${bookId}`)
         .then(response => response.json())
@@ -460,7 +462,7 @@ async function callLargeModel(modelId, prompt) {
                         }
                     ],
                     model: modelId,
-                    temperature: 0.7,
+                    temperature: 0.5,
                     top_p: 0.9,
                     max_tokens: 8000
                 })
@@ -547,7 +549,14 @@ async function generateCharacters() {
 4. 成长轨迹：主要人物可能的成长方向和发展路线
 5. 矛盾冲突：人物之间潜在的矛盾点和冲突源
 6. 个性特征：每个主要人物独特的性格特点和行为模式
+7.人物决策树
 
+为每个主要角色制作"性格-处境"响应表
+示例：
+| 角色 | 恐惧源 | 应激反应模式 | 道德底线 |
+|---|---|---|---|
+| 主角A | 失去控制 | 先发制人攻击 | 不伤害无辜者 |
+| 反派B | 被遗忘 | 制造大规模事件 | 无 |
 请详细描述每个方面，使人物形象丰满立体，性格特点鲜明，关系网络合理。`;
 
     try {
@@ -605,15 +614,23 @@ async function generateChapterOutline() {
         const charactersResponse = await fetch(`/api/settings/characters?bookId=${bookId}`);
         const charactersData = await charactersResponse.json();
         const characters = charactersData.value || '';
-
-        const prompt = `请根据以下世界观和人物设定，生成${chapterCount}章的小说章节目录。
-每章的格式必须严格按照："章节序号，章节名称，一句话介绍【登场人物】"一句话介绍字数100字左右，写清楚本章的剧情，例如：
-1，初入修仙界，少年踏上修行之路...【张三】
-2，寻找灵药，意外发现上古遗迹...【张三||李四】
+//获取故事大纲
+        const worldTimelineResponse = await fetch(`/api/settings/worldTimeline?bookId=${bookId}`);
+        const worldTimelineData = await worldTimelineResponse.json();
+        const worldTimeline = worldTimelineData.value || '';
+        const prompt = `请根据以下世界观，故事大纲和人物设定，生成${chapterCount}章的小说章节目录。
+每章的格式必须严格按照："章节序号，章节名称，【章节目标 | 发生地点 | 出场人物 | 关键事件 | 伏笔/回收 | 情绪基调】"字数100字左右，写清楚本章的剧情。
+如果有多个人物出现，用"||"分隔。一句话介绍应该包含
+例如：
+1，初入修仙界，【章节目标：少年踏上修行之路。| 发生地点：修仙界 | 出场人物：张三 | 关键事件：初入修仙界 | 伏笔/回收：无 | 情绪基调：热血】
+2，寻找灵药，【章节目标：寻找灵药 | 发生地点：修仙界 | 出场人物：张三||李四 | 关键事件：寻找灵药 | 伏笔/回收：无 | 情绪基调：热血】
 ...
 
 世界观设定：
 ${worldview}
+
+故事大纲：
+${worldTimeline}
 
 人物设定：
 ${characters}
@@ -866,7 +883,8 @@ async function loadModelConfig() {
         const modelSelects = [
             document.getElementById('modalModelSelect'),
             document.getElementById('characterModelSelect'),
-            document.getElementById('timelineModelSelect')
+            document.getElementById('timelineModelSelect'),
+            document.getElementById('worldTimelineModelSelect')
         ];
         
         // 为每个下拉框添加选项
@@ -927,7 +945,10 @@ async function regenerateChapters() {
         const worldviewResponse = await fetch(`/api/settings/environment?bookId=${bookId}`);
         const worldviewData = await worldviewResponse.json();
         const worldview = worldviewData.value || '';
-
+//获取故事大纲
+        const worldTimelineResponse = await fetch(`/api/settings/worldTimeline?bookId=${bookId}`);
+        const worldTimelineData = await worldTimelineResponse.json();
+        const worldTimeline = worldTimelineData.value || '';
         // 获取人物设定
         const charactersResponse = await fetch(`/api/settings/characters?bookId=${bookId}`);
         const charactersData = await charactersResponse.json();
@@ -938,19 +959,25 @@ async function regenerateChapters() {
         const summaryData = await summaryResponse.json();
         const summaries = summaryData.summaries || [];
 
+
         // 逐章生成内容
         for (let currentChapter = startChapter; currentChapter <= endChapter; currentChapter++) {
-            // const chapterSummary = summaries.find(s => s.startsWith(`${currentChapter}，`));
-            
-            // if (!chapterSummary) {
-            //     console.error(`未找到第${currentChapter}章的摘要`);
-            //     continue;
-            // }
+            //如果不是第一章，则将上一章的内容作为上文
+            let prevChapterContent = '';
+            if (currentChapter > 1) {
+                const chapterResponse = await fetch(`/api/chapters/${currentChapter-1}?bookId=${bookId}`);
+                const prevChapter = await chapterResponse.json();
+                prevChapterContent ="上文:" + prevChapter.content;
+            }
+
 
             const prompt = `作为一位专业小说作家，请根据以下信息创作小说章节：
 
 世界观设定：
 ${worldview}
+
+故事大纲：
+${worldTimeline}
 
 人物设定：
 ${characters}
@@ -958,13 +985,15 @@ ${characters}
 章节摘要：
 ${summaries.join('\n')}
 
+
+${prevChapterContent}
 当前需要创作的是第${currentChapter}章，要求：
 1. 字数控制在${wordCount}字左右
 2. 严格按照章节摘要发展情节
 3. 注意人物性格的一致性
 4. 场景描写要细腻生动
 5. 对话要自然流畅
-6. 注意与前后章节的连贯性
+6. 如果上文存在，请注意与上文的连贯性
 7. 合理的细节描写和情感铺垫
 8. 保持叙事节奏的张弛有度
 
@@ -1000,5 +1029,81 @@ ${summaries.join('\n')}
     } catch (error) {
         console.error('生成章节失败:', error);
         alert('生成章节失败，请重试');
+    }
+}
+
+// 添加生成故事大纲的函数
+async function generateWorldTimeline() {
+    const modelSelect = document.getElementById('worldTimelineModelSelect');
+    const includeWorldView = document.getElementById('includeWorldViewForTimeline').checked;
+    const includeCharacters = document.getElementById('includeCharactersForTimeline').checked;
+    const selectedModel = modelSelect.value;
+    const modalText = document.getElementById('modalText');
+    
+    let context = '';
+
+    try {
+        // 获取世界观
+        if (includeWorldView) {
+            const worldviewResponse = await fetch(`/api/settings/environment?bookId=${bookId}`);
+            const worldviewData = await worldviewResponse.json();
+            if (worldviewData.value) {
+                context += '世界观设定：\n' + worldviewData.value + '\n\n';
+            }
+        }
+
+        // 获取人物设定
+        if (includeCharacters) {
+            const charactersResponse = await fetch(`/api/settings/characters?bookId=${bookId}`);
+            const charactersData = await charactersResponse.json();
+            if (charactersData.value) {
+                context += '人物设定：\n' + charactersData.value + '\n\n';
+            }
+        }
+
+        const prompt = `作为一个专业的小说策划师，请根据以下信息构建一个完整的故事大纲：
+
+${context}
+请按照以下要求构建故事大纲：
+
+1. 整体架构：
+   - 分为3-5个主要篇章
+   - 每个篇章的主要剧情走向
+   - 篇章之间的关联和递进关系
+
+2. 主线剧情：
+   - 核心矛盾和冲突
+   - 主要转折点
+   - 高潮情节设计
+   - 结局构思
+
+3. 支线剧情：
+   - 重要配角的故事线
+   - 与主线的交织点
+   - 对主线的推动作用
+
+4. 情感线索：
+   - 主要人物的情感发展
+   - 重要关系的变化过程
+   - 情感冲突的设计
+
+5. 世界观展开：
+   - 世界观元素的逐步揭示
+   - 重要设定的铺垫和运用
+   - 神秘感和悬念的设计
+6.多线叙事锚点
+   - 主时间轴：主角成长线（每3章达成阶段性目标）
+   - 暗时间轴：反派阴谋推进线（关键节点与主线交汇）
+   - 世界轴：环境恶化/势力变迁等客观进程（用新闻简报/自然异象穿插）
+7.关键事件沙盘
+   - 在时间线上标注10个不可更改的"支柱事件"
+   - 每个支柱事件预留3种触发可能性（人物选择/意外干扰/阴谋推动）
+请详细描述每个方面，确保故事结构完整，情节发展合理，冲突设置合理，并保持故事的吸引力和可读性。`;
+
+        modalText.value = '正在生成故事大纲...';
+        modalText.value = await callLargeModel(selectedModel, prompt);
+    } catch (error) {
+        console.error('生成故事大纲失败:', error);
+        modalText.value = '生成故事大纲失败，请重试';
     }
 }

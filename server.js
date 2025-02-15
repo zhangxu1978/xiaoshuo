@@ -665,7 +665,7 @@ app.post('/api/chat', async (req, res) => {
                 body: JSON.stringify({
                     model: huaweiConfig.model,
                     messages,
-                    temperature: temperature || 1.0,
+                    temperature: temperature || 0.5,
                     max_tokens: 2048,
                     stream: false
                 })
@@ -701,7 +701,7 @@ app.post('/api/chat', async (req, res) => {
                 body: JSON.stringify({
                     model: doubaoR1Config.model,
                     messages,
-                    temperature: temperature || 0.8,
+                    temperature: temperature || 0.5,
                     top_p: top_p || 0.8,
                     max_tokens: max_tokens || 8000,
                     stream: false
@@ -733,7 +733,7 @@ app.post('/api/chat', async (req, res) => {
                 body: JSON.stringify({
                     model: doubaoConfig.model,
                     messages,
-                    temperature: temperature || 0.8,
+                    temperature: temperature || 0.5,
                     top_p: top_p || 0.8,
                     max_tokens: max_tokens || 8000,
                     stream: false
@@ -761,7 +761,7 @@ app.post('/api/chat', async (req, res) => {
                 body: JSON.stringify({
                     model: tianyiConfig.modelId,
                     messages,
-                    temperature: temperature || 0.8,
+                    temperature: temperature || 0.5,
                     top_p: top_p || 0.8,
                     max_tokens: max_tokens || 2048,
                     stream: false
@@ -798,7 +798,7 @@ app.post('/api/chat', async (req, res) => {
                 body: JSON.stringify({
                     model: siliconflowDeepseekR1Config.model,
                     messages,
-                    temperature: temperature || 0.8,
+                    temperature: temperature || 0.5,
                     top_p: top_p || 0.8,
                     max_tokens: max_tokens || 4096,
                     stream: false
@@ -825,7 +825,7 @@ app.post('/api/chat', async (req, res) => {
                 body: JSON.stringify({
                     model: siliconflowDeepseekV3Config.model,
                     messages,
-                    temperature: temperature || 0.8,
+                    temperature: temperature || 0.5,
                     top_p: top_p || 0.8,
                     max_tokens: max_tokens || 4096,
                     stream: false
