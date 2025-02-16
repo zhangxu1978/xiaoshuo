@@ -82,18 +82,12 @@ const openai = new OpenAI({
     baseURL: config.deepseek.apiBase
 });
 
-// 初始化Google AI客户端
-// const genAI = new GoogleGenerativeAI(config.google.apiKey);
-// const googleModel = genAI.getGenerativeModel({ 
-//     model: "gemini-pro",
-//     timeout: 30000,
-//     retry: {
-//         retries: 3,
-//         factor: 2,
-//         minTimeout: 1000,
-//         maxTimeout: 5000
-//     }
-// });
+// 英伟达AI配置
+const yingweidaConfig = {
+    apiKey: config.yingweida.apiKey,
+    apiBase: config.yingweida.apiBase,
+    model: config.yingweida.model
+};
 
 // 天翼AI配置
 const tianyiConfig = {
@@ -775,6 +769,32 @@ app.post('/api/chat', async (req, res) => {
                 }]
             });
         
+        }   
+        else if (model === 'yingweida') {
+            // 调用英伟达AI
+            const response = await fetch(`${yingweidaConfig.apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${yingweidaConfig.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: yingweidaConfig.model,
+                    messages,
+                    temperature: temperature || 0.5,
+                    top_p: top_p || 0.8,
+                    max_tokens: max_tokens || 2048,
+                    stream: false
+                })
+            });
+            const result = await response.json();
+            res.json({
+                choices: [{
+                    message: {
+                        content: result.choices[0].message.content
+                    }
+                }]
+            });
         }   
         else if (model === 'deepseek-tianyi-ai') {
             // 调用天翼AI
