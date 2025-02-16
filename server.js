@@ -3,10 +3,63 @@ const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-const ngrok = require('ngrok');
 const OpenAI = require('openai');
 const fetch = require('node-fetch');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// 导入 Gradio 客户端
+let gradioClient = null;
+let isGradioInitialized = false;
+
+async function initGradioClient() {
+    if (isGradioInitialized && gradioClient) {
+        console.log('Gradio客户端已初始化');
+        return;
+    }
+    
+    try {
+        console.log('开始初始化Gradio客户端...');
+        const { Client } = await import('@gradio/client');
+        console.log('成功导入@gradio/client');
+        
+        gradioClient = await Client.connect("http://127.0.0.1:8080/");
+        console.log('成功创建Gradio客户端实例');
+        
+        // 测试predict方法是否可用
+        try {
+            const result = await gradioClient.predict("/generate_audio", {
+                text: "测试文本",
+                temperature: 0.00001,
+                top_P: 0.1,
+                top_K: 1,
+                audio_seed_input: 3,
+                text_seed_input: 3,
+                refine_text_flag: true
+            });
+            console.log('Gradio predict测试结果:', result);
+            isGradioInitialized = true;
+            console.log('Gradio客户端连接成功');
+        } catch (error) {
+            console.error('Gradio predict测试失败:', error);
+            throw new Error('Gradio predict方法测试失败');
+        }
+    } catch (error) {
+        console.error('Gradio客户端连接失败:', error);
+        console.error('错误详情:', {
+            message: error.message,
+            stack: error.stack
+        });
+        gradioClient = null;
+        isGradioInitialized = false;
+        throw error;
+    }
+}
+
+// 定期尝试重新连接
+setInterval(async () => {
+    if (!isGradioInitialized) {
+        await initGradioClient();
+    }
+}, 30000); // 每30秒尝试重新连接一次
 
 // 读取配置文件
 const configPath = path.join(__dirname, 'newbook', 'key.config');
@@ -137,6 +190,9 @@ function saveBooks(books) {
     fs.writeFileSync(path.join(__dirname, 'books.json'), JSON.stringify(books, null, 2));
 }
 
+
+
+
 // 登录接口
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
@@ -244,19 +300,6 @@ app.post('/api/books', (req, res) => {
 app.listen(port, async () => {
     console.log(`服务器运行在 http://localhost:${port}`);
     
-    // try {
-    //     // 创建 ngrok 隧道
-    //     const url = await ngrok.connect({
-    //         addr: port,
-    //          authtoken: '2qzIampQVvHE4eZKvkGZdigmEcJ_pQwuL8wKfUXQrp5RAi9U',  // 如果你有 ngrok 账号，可以添加这行
-    //     });
-        
-    //     // 输出生成的外网访问地址
-    //     console.log('可以通过以下地址从外网访问：', url);
-
-    // } catch (err) {
-    //     console.error('创建隧道时发生错误：', err);
-    // }
 });
 // 在 server.js 中添加以下函数和 API 端点
 
@@ -1106,3 +1149,101 @@ function processTextOperations(operationsText, targetText) {
     
     return resultText;
 }
+
+// 添加语音生成API
+app.post('/api/generate-audio', async (req, res) => {
+    try {
+        console.log('收到语音生成请求:', req.body);
+
+        // 检查请求体格式
+        if (!req.body || typeof req.body !== 'object') {
+            return res.status(400).json({
+                success: false,
+                message: '无效的请求格式'
+            });
+        }
+
+        // 获取请求参数
+        const requestData = req.body.text ? req.body : { data: req.body };
+        
+        const {
+            text,
+            temperature = 0.00001,
+            top_P = 0.1,
+            top_K = 1,
+            audio_seed_input = 3,
+            text_seed_input = 3,
+            refine_text_flag = true
+        } = requestData.data || requestData;
+
+        // 验证必要参数
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                message: '缺少必要参数: text'
+            });
+        }
+
+        console.log('正在初始化Gradio客户端...');
+        // 如果客户端未初始化，尝试初始化
+        if (!isGradioInitialized || !gradioClient) {
+            await initGradioClient();
+        }
+
+        if (!gradioClient) {
+            console.error('Gradio客户端初始化失败');
+            return res.status(503).json({
+                success: false,
+                message: '语音生成服务暂时不可用，请稍后重试'
+            });
+        }
+
+        console.log('开始调用Gradio API...');
+        console.log('参数:', {
+            text,
+            temperature,
+            top_P,
+            top_K,
+            audio_seed_input,
+            text_seed_input,
+            refine_text_flag
+        });
+
+        // 使用新的 @gradio/client 调用方式
+        const result = await gradioClient.predict("/generate_audio", {
+            text,
+            temperature,
+            top_P,
+            top_K,
+            audio_seed_input,
+            text_seed_input,
+            refine_text_flag
+        });
+
+        console.log('Gradio API返回结果:', result);
+
+        // 解构返回的数组
+        const [audioFilePath, outputText] = result.data;
+
+        res.json({
+            success: true,
+            data: {
+                audioFilePath,
+                outputText
+            }
+        });
+        
+    } catch (error) {
+        console.error('生成语音失败:', error);
+        // 如果是连接错误，重置客户端状态
+        if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
+            isGradioInitialized = false;
+            gradioClient = null;
+            console.log('重置Gradio客户端状态');
+        }
+        res.status(500).json({
+            success: false,
+            message: '生成语音失败: ' + error.message
+        });
+    }
+});
