@@ -121,6 +121,12 @@ const siliconflowDeepseekV3Config = {
     apiBase: config.siliconflowDeepseekV3.apiBase,
     model: config.siliconflowDeepseekV3.model
 };
+//百度AI配置
+const baiduConfig = {
+    apiKey: config.baidu.apiKey,
+    apiBase: config.baidu.apiBase,
+    model: config.baidu.model
+};
 app.use(express.static(path.join(__dirname)));
 app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
@@ -880,6 +886,33 @@ app.post('/api/chat', async (req, res) => {
                 }]
             });
         }   
+        else if (model=="baidu-ai"){
+            // 调用百度AI
+            const response = await fetch(`${baiduConfig.apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${baiduConfig.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: baiduConfig.model,
+                    messages,
+                    temperature: temperature || 0.5,
+                    top_p: top_p || 0.8,
+                    max_tokens: max_tokens || 4048,
+                    stream: false
+                })
+            });
+            const result = await response.json();
+          //  console.log('百度AI返回结果:', result);
+            res.json({
+                choices: [{
+                    message: {
+                        content: result.choices[0].message.content
+                    }
+                }]
+            });
+        }               
         else {
             // 处理其他模型
             res.status(400).json({ error: { message: '不支持的模型类型' } });
