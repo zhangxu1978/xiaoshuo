@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>语音生成器</title>
+    <style>
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .text-area {
+            width: 100%;
+            height: 200px;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .button:hover {
+            background-color: #45a049;
+        }
+
+        .button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #audioPlayer {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+
+        .advanced-options {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .parameter-group {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .parameter-group label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .parameter-group input[type="number"] {
+            width: 120px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .parameter-group input[type="checkbox"] {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>语音生成器</h1>
+        <textarea id="textInput" class="text-area" placeholder="请输入要转换为语音的文本..."></textarea>
+        <div class="button-group">
+            <button id="generateBtn" class="button">生成音频</button>
+            <button id="playBtn" class="button" disabled>播放音频</button>
+            <button id="toggleAdvancedBtn" class="button">高级选项</button>
+        </div>
+        <div id="advancedOptions" class="advanced-options" style="display: none;">
+            <div class="parameter-group">
+                <label>
+                    温度 (Temperature):
+                    <input type="number" id="temperature" value="0.00001" step="0.00001" min="0" max="1">
+                </label>
+            </div>
+            <div class="parameter-group">
+                <label>
+                    Top P:
+                    <input type="number" id="topP" value="0.1" step="0.1" min="0" max="1">
+                </label>
+            </div>
+            <div class="parameter-group">
+                <label>
+                    Top K:
+                    <input type="number" id="topK" value="1" step="1" min="1">
+                </label>
+            </div>
+            <div class="parameter-group">
+                <label>
+                    音频种子:
+                    <input type="number" id="audioSeed" value="3" step="1" min="1">
+                </label>
+            </div>
+            <div class="parameter-group">
+                <label>
+                    文本种子:
+                    <input type="number" id="textSeed" value="3" step="1" min="1">
+                </label>
+            </div>
+            <div class="parameter-group">
+                <label>
+                    <input type="checkbox" id="refineText" checked>
+                    优化文本
+                </label>
+            </div>
+        </div>
+        <audio id="audioPlayer" controls style="display: none;"></audio>
+        <div id="status" class="status" style="display: none;"></div>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const playBtn = document.getElementById('playBtn');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const statusDiv = document.getElementById('status');
+        const toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn');
+        const advancedOptions = document.getElementById('advancedOptions');
+
+        // 高级选项相关元素
+        const temperatureInput = document.getElementById('temperature');
+        const topPInput = document.getElementById('topP');
+        const topKInput = document.getElementById('topK');
+        const audioSeedInput = document.getElementById('audioSeed');
+        const textSeedInput = document.getElementById('textSeed');
+        const refineTextInput = document.getElementById('refineText');
+
+        let currentAudioPath = null;
+
+        toggleAdvancedBtn.addEventListener('click', () => {
+            const isHidden = advancedOptions.style.display === 'none';
+            advancedOptions.style.display = isHidden ? 'block' : 'none';
+            toggleAdvancedBtn.textContent = isHidden ? '隐藏高级选项' : '高级选项';
+        });
+
+        generateBtn.addEventListener('click', async () => {
+            const text = textInput.value.trim();
+            if (!text) {
+                showStatus('请输入要转换的文本', 'error');
+                return;
+            }
+
+            generateBtn.disabled = true;
+            showStatus('正在生成音频...', 'info');
+
+            try {
+                const response = await fetch('/api/generate-audio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        temperature: parseFloat(temperatureInput.value),
+                        top_P: parseFloat(topPInput.value),
+                        top_K: parseInt(topKInput.value),
+                        audio_seed_input: parseInt(audioSeedInput.value),
+                        text_seed_input: parseInt(textSeedInput.value),
+                        refine_text_flag: refineTextInput.checked
+                    })
+                });
+
+                const result = await response.json();
+                console.log('API返回结果:', result);
+                
+                if (result.success && result.data && result.data.audioFilePath) {
+                    currentAudioPath = String(result.data.audioFilePath.url);
+
+                    
+                    try {
+                        new URL(currentAudioPath);
+                    } catch (e) {
+                        throw new Error('无效的音频文件路径: ' + currentAudioPath);
+                    }
+                    
+                    audioPlayer.src = currentAudioPath;
+                    audioPlayer.style.display = 'block';
+                    
+                    audioPlayer.onloadeddata = () => {
+                        playBtn.disabled = false;
+                        showStatus('音频加载成功！', 'success');
+                    };
+                    
+                    audioPlayer.onerror = (e) => {
+                        console.error('音频加载错误:', e);
+                        showStatus('音频加载失败: ' + (audioPlayer.error ? audioPlayer.error.message : '未知错误'), 'error');
+                        playBtn.disabled = true;
+                    };
+                    
+                    showStatus('音频生成成功，正在加载...', 'success');
+                } else {
+                    throw new Error(result.message || '生成音频失败');
+                }
+            } catch (error) {
+                console.error('生成音频错误:', error);
+                showStatus('生成音频失败: ' + error.message, 'error');
+                playBtn.disabled = true;
+                audioPlayer.style.display = 'none';
+            } finally {
+                generateBtn.disabled = false;
+            }
+        });
+
+        playBtn.addEventListener('click', () => {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                playBtn.textContent = '暂停';
+            } else {
+                audioPlayer.pause();
+                playBtn.textContent = '播放';
+            }
+        });
+
+        audioPlayer.addEventListener('ended', () => {
+            playBtn.textContent = '播放';
+        });
+
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            statusDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html> 

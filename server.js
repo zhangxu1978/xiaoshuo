@@ -21,27 +21,10 @@ async function initGradioClient() {
         const { Client } = await import('@gradio/client');
         console.log('成功导入@gradio/client');
         
-        gradioClient = await Client.connect("http://192.168.1.9:8080/");
+        gradioClient = await Client.connect(config.apiSoundBase);
         console.log('成功创建Gradio客户端实例');
         
-        // 测试predict方法是否可用
-        try {
-            const result = await gradioClient.predict("/generate_audio", [
-                "测试文本",
-                0.00001,
-                0.1,
-                1,
-                3,
-                3,
-                true
-            ]);
-            console.log('Gradio predict测试结果:', result);
-            isGradioInitialized = true;
-            console.log('Gradio客户端连接成功');
-        } catch (error) {
-            console.error('Gradio predict测试失败:', error);
-            throw new Error('Gradio predict方法测试失败');
-        }
+        isGradioInitialized = true;
     } catch (error) {
         console.error('Gradio客户端连接失败:', error);
         console.error('错误详情:', {
@@ -1166,7 +1149,7 @@ app.post('/api/generate-audio', async (req, res) => {
         // 获取请求参数
         const {
             text,
-            temperature = 0.00001,
+            temperature = 0.00001,  // 使用前端传递的参数，如果没有则使用默认值
             top_P = 0.1,
             top_K = 1,
             audio_seed_input = 3,
@@ -1179,6 +1162,28 @@ app.post('/api/generate-audio', async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: '缺少必要参数: text'
+            });
+        }
+
+        // 验证参数范围
+        if (temperature < 0 || temperature > 1) {
+            return res.status(400).json({
+                success: false,
+                message: '温度参数必须在0到1之间'
+            });
+        }
+
+        if (top_P < 0 || top_P > 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Top P参数必须在0到1之间'
+            });
+        }
+
+        if (top_K < 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Top K参数必须大于等于1'
             });
         }
 
