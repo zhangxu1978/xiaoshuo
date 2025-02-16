@@ -21,20 +21,20 @@ async function initGradioClient() {
         const { Client } = await import('@gradio/client');
         console.log('成功导入@gradio/client');
         
-        gradioClient = await Client.connect("http://127.0.0.1:8080/");
+        gradioClient = await Client.connect("http://192.168.1.9:8080/");
         console.log('成功创建Gradio客户端实例');
         
         // 测试predict方法是否可用
         try {
-            const result = await gradioClient.predict("/generate_audio", {
-                text: "测试文本",
-                temperature: 0.00001,
-                top_P: 0.1,
-                top_K: 1,
-                audio_seed_input: 3,
-                text_seed_input: 3,
-                refine_text_flag: true
-            });
+            const result = await gradioClient.predict("/generate_audio", [
+                "测试文本",
+                0.00001,
+                0.1,
+                1,
+                3,
+                3,
+                true
+            ]);
             console.log('Gradio predict测试结果:', result);
             isGradioInitialized = true;
             console.log('Gradio客户端连接成功');
@@ -1164,8 +1164,6 @@ app.post('/api/generate-audio', async (req, res) => {
         }
 
         // 获取请求参数
-        const requestData = req.body.text ? req.body : { data: req.body };
-        
         const {
             text,
             temperature = 0.00001,
@@ -1174,7 +1172,7 @@ app.post('/api/generate-audio', async (req, res) => {
             audio_seed_input = 3,
             text_seed_input = 3,
             refine_text_flag = true
-        } = requestData.data || requestData;
+        } = req.body;
 
         // 验证必要参数
         if (!text) {
@@ -1209,8 +1207,8 @@ app.post('/api/generate-audio', async (req, res) => {
             refine_text_flag
         });
 
-        // 使用新的 @gradio/client 调用方式
-        const result = await gradioClient.predict("/generate_audio", {
+        // 调用 Gradio API
+        const result = await gradioClient.predict("/generate_audio", [
             text,
             temperature,
             top_P,
@@ -1218,7 +1216,7 @@ app.post('/api/generate-audio', async (req, res) => {
             audio_seed_input,
             text_seed_input,
             refine_text_flag
-        });
+        ]);
 
         console.log('Gradio API返回结果:', result);
 
