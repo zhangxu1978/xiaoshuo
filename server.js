@@ -37,13 +37,6 @@ async function initGradioClient() {
     }
 }
 
-// 定期尝试重新连接
-setInterval(async () => {
-    if (!isGradioInitialized) {
-        await initGradioClient();
-    }
-}, 30000); // 每30秒尝试重新连接一次
-
 // 读取配置文件
 const configPath = path.join(__dirname, 'newbook', 'key.config');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -1101,8 +1094,8 @@ function operateText(lineNumber, operation, text1, text2) {
     return lines.join('\n');
 }
 
-// 处理文本操作指令的函数
-function processTextOperations(operationsText, targetText) {
+// 处理文本操作指令的函数,加一个参数，是否预处理
+function processTextOperations(operationsText, targetText, preprocess = false) {
     // 定义匹配操作指令的正则表达式（包括行操作和替换操作）
     const lineOperationPattern = /(insert|delete|append|update)\((\d+),([^)]+)\)/g;
     const replacePattern = /replace\(([^,]+),([^)]+)\)/g;
@@ -1117,7 +1110,8 @@ function processTextOperations(operationsText, targetText) {
             type: 'line',
             operation: match[1],         // 操作类型
             lineNumber: parseInt(match[2]), // 行号
-            text: match[3].trim()        // 要操作的文本
+            text: match[3].trim(),        // 要操作的文本
+            originalText: ''              // 用于存储原始文本
         });
     }
     
@@ -1130,27 +1124,110 @@ function processTextOperations(operationsText, targetText) {
         });
     }
     
-    // 先执行替换操作
     let resultText = targetText;
-    for (const op of operations.filter(op => op.type === 'replace')) {
-        resultText = resultText.split(op.searchText).join(op.replaceText);
+    let preprocessedText = targetText;
+
+    if (preprocess) {
+        // 对于替换操作，使用特殊标记
+        for (const op of operations.filter(op => op.type === 'replace')) {
+            preprocessedText = preprocessedText.split(op.searchText)
+                .join(`[原文: ${op.searchText} -> 新文: ${op.replaceText}]`);
+        }
+        
+        // 对于行操作，记录原始内容并添加标记
+        const lines = preprocessedText.split('\n');
+        for (const op of operations.filter(op => op.type === 'line')) {
+            if (op.operation === 'delete' && op.lineNumber <= lines.length) {
+                op.originalText = lines[op.lineNumber - 1];
+                lines[op.lineNumber - 1] = `[删除的行: ${op.originalText}]`;
+            } else if (op.operation === 'update' && op.lineNumber <= lines.length) {
+                op.originalText = lines[op.lineNumber - 1];
+                lines[op.lineNumber - 1] = `[原行: ${op.originalText} -> 新行: ${op.text}]`;
+            } else if (op.operation === 'insert') {
+                lines.splice(op.lineNumber - 1, 0, `[插入的行: ${op.text}]`);
+            } else if (op.operation === 'append') {
+                lines.splice(op.lineNumber, 0, `[追加的行: ${op.text}]`);
+            }
+        }
+        preprocessedText = lines.join('\n');
+        return preprocessedText;
+    } else {
+        // 正常处理逻辑
+        // 先执行替换操作
+        for (const op of operations.filter(op => op.type === 'replace')) {
+            resultText = resultText.split(op.searchText).join(op.replaceText);
+        }
+        
+        // 按行号从大到小排序行操作（从后往前执行）
+        const lineOperations = operations.filter(op => op.type === 'line')
+            .sort((a, b) => b.lineNumber - a.lineNumber);
+        
+        // 执行行操作
+        for (const op of lineOperations) {
+            resultText = operateText(
+                op.lineNumber,
+                op.operation,
+                op.text,
+                resultText
+            );
+        }
+        
+        return resultText;
+    }
+}
+
+// 处理预处理文本的函数
+function processPreprocessedText(preprocessedText, toOriginal = true) {
+    const lines = preprocessedText.split('\n');
+    const resultLines = [];
+    
+    for (let line of lines) {
+        // 处理替换操作的标记
+        const replaceMatch = line.match(/\[原文: (.*?) -> 新文: (.*?)\]/);
+        if (replaceMatch) {
+            resultLines.push(toOriginal ? replaceMatch[1] : replaceMatch[2]);
+            continue;
+        }
+        
+        // 处理删除行的标记
+        const deleteMatch = line.match(/\[删除的行: (.*?)\]/);
+        if (deleteMatch) {
+            if (toOriginal) {
+                resultLines.push(deleteMatch[1]);
+            }
+            continue;
+        }
+        
+        // 处理更新行的标记
+        const updateMatch = line.match(/\[原行: (.*?) -> 新行: (.*?)\]/);
+        if (updateMatch) {
+            resultLines.push(toOriginal ? updateMatch[1] : updateMatch[2]);
+            continue;
+        }
+        
+        // 处理插入行的标记
+        const insertMatch = line.match(/\[插入的行: (.*?)\]/);
+        if (insertMatch) {
+            if (!toOriginal) {
+                resultLines.push(insertMatch[1]);
+            }
+            continue;
+        }
+        
+        // 处理追加行的标记
+        const appendMatch = line.match(/\[追加的行: (.*?)\]/);
+        if (appendMatch) {
+            if (!toOriginal) {
+                resultLines.push(appendMatch[1]);
+            }
+            continue;
+        }
+        
+        // 没有标记的行直接保留
+        resultLines.push(line);
     }
     
-    // 按行号从大到小排序行操作（从后往前执行）
-    const lineOperations = operations.filter(op => op.type === 'line')
-        .sort((a, b) => b.lineNumber - a.lineNumber);
-    
-    // 执行行操作
-    for (const op of lineOperations) {
-        resultText = operateText(
-            op.lineNumber,
-            op.operation,
-            op.text,
-            resultText
-        );
-    }
-    
-    return resultText;
+    return resultLines.join('\n');
 }
 
 // 添加语音生成API
@@ -1207,9 +1284,9 @@ app.post('/api/generate-audio', async (req, res) => {
             });
         }
 
-        console.log('正在初始化Gradio客户端...');
-        // 如果客户端未初始化，尝试初始化
+        // 只在收到请求时初始化Gradio客户端
         if (!isGradioInitialized || !gradioClient) {
+            console.log('正在初始化Gradio客户端...');
             await initGradioClient();
         }
 
