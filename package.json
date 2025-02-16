@@ -23,5 +23,8 @@
     "node-fetch": "^2.7.0",
     "openai": "^4.82.0",
     "undici": "^7.3.0"
+  },
+  "devDependencies": {
+    "@gradio/client": "^1.12.0"
   }
 }
