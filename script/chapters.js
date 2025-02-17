@@ -423,9 +423,13 @@ function toggleMinimize(event) {
 // 通用的大模型调用函数
 async function callLargeModel(modelId, prompt) {
     try {
-        if (modelId === 'google-ai') {
+        if (modelId === 'google-ai'||modelId==='google-ai-thinking') {
+            let model='gemini-2.0-flash-exp';
+            if(modelId==='google-ai-thinking'){
+                model='gemini-2.0-flash-thinking-exp';
+            }
             // 调用谷歌 AI API
-            const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
+            const url = 'https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -635,7 +639,7 @@ ${worldTimeline}
 人物设定：
 ${characters}
 
-请生成${chapterCount}章的章节目录，确保每章都符合世界观和人物设定，并且故事情节连贯，富有张力。`;
+请参考以上内容，生成${chapterCount}章的章节目录，确保每章都符合世界观，故事大纲和人物设定，并且故事情节连贯，富有张力。`;
 
         modalText.value = '正在生成章节目录...';
 

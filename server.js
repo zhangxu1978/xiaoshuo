@@ -904,7 +904,7 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
-          //  console.log('百度AI返回结果:', result);
+            console.log('百度AI返回结果:', result);
             res.json({
                 choices: [{
                     message: {
@@ -1379,4 +1379,30 @@ app.post('/api/generate-audio', async (req, res) => {
             message: '生成语音失败: ' + error.message
         });
     }
+});
+
+// 添加文本操作API
+app.post('/api/process-text-operations', (req, res) => {
+    try {
+        const { operationsText, targetText, preprocess } = req.body;
+        const result = processTextOperations(operationsText, targetText, preprocess);
+        res.json({
+            success: true,
+            result: result
+        });
+    } catch (error) {
+        console.error('处理文本操作失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '处理文本操作失败: ' + error.message
+        });
+    }
+});
+app.post('/api/process-text-operations-preprocess', (req, res) => {
+    const { operationsText, targetText } = req.body;
+    const result = processPreprocessedText(operationsText, targetText);
+    res.json({
+        success: true,
+        result: result
+    });
 });
