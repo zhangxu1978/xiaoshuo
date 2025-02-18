@@ -48,6 +48,10 @@
             background-color: #4CAF50;
             color: white;
         }
+        .clean-btn {
+            background-color: #2196F3;
+            color: white;
+        }
         .cancel-btn {
             background-color: #f44336;
             color: white;
@@ -67,6 +71,7 @@
         </div>
         <div class="button-group">
             <button class="cancel-btn" onclick="cancelEdit()">取消</button>
+            <button class="clean-btn" onclick="cleanContent()">清理</button>
             <button class="save-btn" onclick="saveChapter()">保存</button>
         </div>
     </div>
@@ -76,6 +81,13 @@
         const chapterId = new URLSearchParams(window.location.search).get('chapterId');
         let currentUser = null;
 
+        // 清理内容
+        function cleanContent() {
+            const textarea = document.getElementById('chapterContent');
+            const content = textarea.value;
+            // 使用正则表达式删除【】及其中的内容
+            textarea.value = content.replace(/【[^】]*】/g, '');
+        }
         // 检查登录状态
         async function checkLoginStatus() {
             try {

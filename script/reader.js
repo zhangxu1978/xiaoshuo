@@ -275,7 +275,47 @@ async function getText() {
         loadingSpinner.style.display = 'block';
         getTextArea.value = '正在处理中...';
         let neirong = await callLargeModel(selectedModel, selectedText);
+        getTextArea.value=neirong;
+        // 调用服务器端的文本处理API
+        // const response = await fetch('/api/process-text-operations', {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json'
+        //     },
+        //     body: JSON.stringify({
+        //         operationsText: neirong,
+        //         targetText: selectedText,
+        //         preprocess: true
+        //     })
+        // });
         
+        // const result = await response.json();
+        // if (result.success) {
+        //     getTextArea.value = result.result;
+        // } else {
+        //     throw new Error(result.message);
+        // }
+    } catch (error) {
+        console.error('AI润色请求失败:', error);
+        getTextArea.value = '处理失败，请重试';
+    } finally {
+        loadingSpinner.style.display = 'none';
+    }
+}
+async function processOperations(){
+    const selectedText = document.getElementById('selectedText').value;
+   
+    const loadingSpinner = document.querySelector('.loading-spinner');
+    const getTextArea = document.getElementById('getText');
+
+    if (!selectedText.trim()) {
+        alert('请输入需要润色的文字');
+        return;
+    }
+
+    try {
+        loadingSpinner.style.display = 'block';
+       // getTextArea.value = '正在处理中...';
         // 调用服务器端的文本处理API
         const response = await fetch('/api/process-text-operations', {
             method: 'POST',
@@ -283,7 +323,7 @@ async function getText() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                operationsText: neirong,
+                operationsText: getTextArea.value,
                 targetText: selectedText,
                 preprocess: true
             })
@@ -302,7 +342,6 @@ async function getText() {
         loadingSpinner.style.display = 'none';
     }
 }
-
 // 拖动相关代码
 let isDragging = false;
 let currentX;
@@ -476,12 +515,9 @@ async function generateChapterSummary() {
 
     try {
         summaryInput.value = '正在生成摘要...';
-        const prompt = `请对下面的章节内容进行全面的总结分析。请包含以下方面：
-1. 时间和地点
-2. 出场人物及其关键行为
-3. 故事情节摘要
-4. 重要的伏笔和隐喻（如果有）
-5. 本章节对整体故事的推动作用
+        const prompt = `请对下面的章节内容进行全面的分析。
+       1、 以场景为单位，分析每个场景的背景、人物、情节、情感、冲突,伏笔，线索等。
+       2、 每个场景转换到下个场景转换方式
 
 章节内容：${chapterContent}`;
         
@@ -687,17 +723,30 @@ async function loadModelConfig() {
         const response = await fetch('/newbook/key.config');
         const config = await response.json();
         const modelSelect = document.getElementById('modelSelect');
+        const reconstructModelSelect = document.getElementById('reconstructModelSelect');
+        const summaryModelSelect = document.getElementById('summaryModelSelect');
         window.config = config; // 保存配置到全局变量
         
         // 清空现有选项
         modelSelect.innerHTML = '';
-        
+        reconstructModelSelect.innerHTML = '';
+        summaryModelSelect.innerHTML = '';
+
+
         // 添加新选项
         config.models.forEach(model => {
             const option = document.createElement('option');
             option.value = model.id;
             option.textContent = model.name;
+            const option2 = document.createElement('option');
+            option2.value = model.id;
+            option2.textContent = model.name;
+            const option3 = document.createElement('option');
+            option3.value = model.id;
+            option3.textContent = model.name;
             modelSelect.appendChild(option);
+            reconstructModelSelect.appendChild(option3);
+            summaryModelSelect.appendChild(option2);
         });
     } catch (error) {
         console.error('加载模型配置失败:', error);

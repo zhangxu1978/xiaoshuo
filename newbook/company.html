@@ -489,9 +489,12 @@
                         content: msg.text
                     }));
                     
-                    if (selectedModel === 'google-ai') {
+                    if (selectedModel === 'google-ai'||selectedModel==='google-ai-thinking') {
                         const systemPrompt = systemPrompts[currentEmployee.name.split(' ')[0]].prompt;
-                        
+                        let model='gemini-2.0-flash-exp';
+            if(selectedModel==='google-ai-thinking'){
+                model='gemini-2.0-flash-thinking-exp';
+            }
                         // 将历史消息转换为Google AI格式
                         let googleaiformat = [];
                         // 添加系统提示词
@@ -514,7 +517,7 @@
                             "parts": [{"text": message}]
                         });
 
-                        const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
+                        const url = 'https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key=AIzaSyAxPOoOh-zAvC7FoFaxKd15E1NDGKhotAI';
                         response = await fetch(url, {
                             method: 'POST',
                             headers: {

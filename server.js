@@ -671,7 +671,8 @@ app.post('/api/generate-static-txt', async (req, res) => {
 // 添加聊天API处理
 app.post('/api/chat', async (req, res) => {
     const { messages, model, temperature, top_p, max_tokens } = req.body;
-
+//计算时间
+    const startTime = new Date();
     try {
         if (model === 'huawei-ai') {
             // 调用华为云AI
@@ -691,7 +692,7 @@ app.post('/api/chat', async (req, res) => {
             });
 
             const result = await response.json();
-           // console.log('华为云AI返回结果:', result);
+            console.log('华为云AI返回结果时长:', new Date() - startTime);
             if (result.choices && result.choices[0]) {
                 res.json({
                     choices: [{
@@ -728,8 +729,7 @@ app.post('/api/chat', async (req, res) => {
             });
             const result = await response.json();
             //序列化火山引擎DeepSeekR1返回结果: {"choices":[{"finish_reason":"stop","index":0,"logprobs":null,"message":{"content":"\n\n你好！很高兴见到你。有什么我可以帮助你的吗？","reasoning_content":"好的，用户发来了"你好"，这是一个常见的中文问候。我需要用中文回复，保持友好和自然。首先，我应 该回应问候，比如"你好！很高兴见到你。"然后，按照用户的要求，我需要提供一个例子来展示我的思考过程，但用户可能希望这个例子是中文的。接下来，我需要确保回答符合他们的需求，比如询问他们需要什么帮助。要注意保持口语化，避免使用格式化的结构，同时遵循中文的表达习惯。此外，要避免任何Markdown格式，保持文本简洁。最后，确保回答准确，符合用户的指示。现在，把这些整合起来，形成自然流畅的回应。\n","role":"assistant"}}],"created":1739110675,"id":"02173911066296584bae976ab37fc49f95f8882bb751870ac2210","model":"deepseek-r1-250120","object":"chat.completion","usage":{"completion_tokens":145,"prompt_tokens":12,"total_tokens":157,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":132}}}
-            const resultString = JSON.stringify(result);
-           // console.log('火山引擎DeepSeekR1返回结果:', resultString);
+
            const reasoning_content = result.choices[0].message["reasoning_content"];
            const content = result.choices[0].message["content"];
            const assistantMessage = "思考过程：" + reasoning_content + "\n\n回答："  + content;
@@ -759,7 +759,7 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
-           // console.log('火山引擎DeepSeek返回结果:', result);
+            console.log('火山引擎DeepSeekV返回结果时长:', new Date() - startTime);
             res.json({
                 choices: [{
                     message: {
@@ -787,6 +787,7 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
+            console.log('英伟达AI返回结果时长:', new Date() - startTime);
             res.json({
                 choices: [{
                     message: {
@@ -814,7 +815,7 @@ app.post('/api/chat', async (req, res) => {
             });
 
             const result = await response.json();
-            
+            console.log('天翼AI返回结果时长:', new Date() - startTime);
             if (result.code === 0 && result.choices && result.choices[0]) {
                 res.json({
                     choices: [{
@@ -850,7 +851,7 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
-           // console.log('硅基流动deepseekR1返回结果:', result);
+            console.log('硅基流动deepseekR1返回结果时长:', new Date() - startTime);
             res.json({
                 choices: [{
                     message: {
@@ -877,7 +878,7 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
-          //  console.log('硅基流动deepseekV3返回结果:', result);
+            console.log('硅基流动deepseekV3返回结果时长:', new Date() - startTime);
             res.json({
                 choices: [{
                     message: {
@@ -904,7 +905,7 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
-            console.log('百度AI返回结果:', result);
+            console.log('百度AI返回结果时长:', new Date() - startTime);
             res.json({
                 choices: [{
                     message: {
@@ -974,7 +975,7 @@ function saveChapterSettings(bookId, chapterId, data) {
         
         // 验证文件是否成功创建
         if (fs.existsSync(filePath)) {
-            console.log('文件创建成功，可以在以下位置找到:', filePath);
+            //console.log('文件创建成功，可以在以下位置找到:', filePath);
         } else {
             throw new Error('文件创建失败');
         }
