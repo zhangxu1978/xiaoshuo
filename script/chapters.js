@@ -531,21 +531,36 @@ async function generateModalWorldView() {
 async function generateCharacters() {
     const modelSelect = document.getElementById('characterModelSelect');
     const includeWorldView = document.getElementById('includeWorldView');
+    const includeWorldTimeline = document.getElementById('includeWorldTimeline');
     const selectedModel = modelSelect.value;
     const modalText = document.getElementById('modalText');
-    let worldViewContent = '';
+    let context = '';
 
     if (includeWorldView.checked) {
         try {
             const response = await fetch(`/api/settings/environment?bookId=${bookId}`);
             const data = await response.json();
-            worldViewContent = data.value || '';
+            if (data.value) {
+                context += '世界观设定：\n' + data.value + '\n\n';
+            }
         } catch (error) {
             console.error('获取世界观失败:', error);
         }
     }
 
-    const prompt = `请你作为一个专业的小说策划师，${includeWorldView.checked ? '基于以下世界观：\n\n' + worldViewContent + '\n\n' : ''}为我构建一组完整的小说人物设定。
+    if (includeWorldTimeline.checked) {
+        try {
+            const response = await fetch(`/api/settings/worldTimeline?bookId=${bookId}`);
+            const data = await response.json();
+            if (data.value) {
+                context += '故事大纲：\n' + data.value + '\n\n';
+            }
+        } catch (error) {
+            console.error('获取故事大纲失败:', error);
+        }
+    }
+
+    const prompt = `请你作为一个专业的小说策划师，${context ? '基于以下信息：\n\n' + context + '\n\n' : ''}为我构建一组完整的小说人物设定。
 需要包含以下要素：
 1. 主要人物：详细描述每个主要人物的性格特征、背景故事、能力特点等
 2. 次要人物：简要描述重要的配角人物
@@ -606,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function generateChapterOutline() {
     const modelSelect = document.getElementById('timelineModelSelect');
     const chapterCount = document.getElementById('chapterCount').value;
+    const outlineRequirements = document.getElementById('outlineRequirements').value;
     const modalText = document.getElementById('modalText');
     const selectedModel = modelSelect.value;
 
@@ -639,7 +655,10 @@ ${worldTimeline}
 人物设定：
 ${characters}
 
-请参考以上内容，生成${chapterCount}章的章节目录，确保每章都符合世界观，故事大纲和人物设定，并且故事情节连贯，富有张力。`;
+特殊要求：
+${outlineRequirements}
+
+请参考以上内容，生成${chapterCount}章的章节目录，确保每章都符合世界观，故事大纲和人物设定，并且故事情节连贯，富有张力。同时请严格遵守特殊要求中的内容。`;
 
         modalText.value = '正在生成章节目录...';
 

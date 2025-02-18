@@ -74,6 +74,8 @@
                 </select>
                 <input type="checkbox" id="includeWorldView" checked style="margin-right: 5px;">
                 <label for="includeWorldView" style="margin-right: 10px;">加载世界观</label>
+                <input type="checkbox" id="includeWorldTimeline" checked style="margin-right: 5px;">
+                <label for="includeWorldTimeline" style="margin-right: 10px;">加载大纲</label>
                 <button onclick="generateCharacters()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">构建人物及人物关系</button>
             </div>
             <div id="timelineControls" style="margin-bottom: 10px; display: none;">
@@ -81,6 +83,7 @@
                     <!-- 模型选项将通过JavaScript动态加载 -->
                 </select>
                 <input type="number" id="chapterCount" placeholder="章节数量" style="padding: 5px; margin-right: 10px; width: 100px;" min="1" value="50">
+                <textarea id="outlineRequirements" placeholder="请输入生成要求" style="width: 300px; height: 60px; padding: 5px; margin-right: 10px; vertical-align: top;"></textarea>
                 <button onclick="generateChapterOutline()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">生成章节目录</button>
                 <button onclick="regenerateChapterSummaries()" style="padding: 5px 10px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">重新生成摘要</button>
                 <div style="margin-top: 10px;">

@@ -780,4 +780,78 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 加载模型配置
     loadModelConfig();
-}); 
+});
+
+async function generateChapterDetail() {
+    const summaryInput = document.getElementById('chapterSummaryInput');
+    const modelSelect = document.getElementById('summaryModelSelect');
+    const selectedModel = modelSelect.value;
+    
+    try {
+        summaryInput.value = '正在生成细节...';
+        
+        // 构建上下文信息
+        let context = '';
+        
+        // 获取世界观设定
+        try {
+            const worldviewResponse = await fetch(`/api/settings/environment?bookId=${bookId}`);
+            const worldviewData = await worldviewResponse.json();
+            if (worldviewData.success) {
+                context += '世界观设定：\n' + worldviewData.value + '\n\n';
+            }
+        } catch (error) {
+            console.error('加载世界观失败:', error);
+        }
+        
+        // 获取大纲
+        try {
+            const outlineResponse = await fetch(`/api/settings/outline?bookId=${bookId}`);
+            const outlineData = await outlineResponse.json();
+            if (outlineData.success) {
+                context += '故事大纲：\n' + outlineData.value + '\n\n';
+            }
+        } catch (error) {
+            console.error('加载大纲失败:', error);
+        }
+        
+        // 获取人物关系
+        // try {
+        //     const charactersResponse = await fetch(`/api/settings/characters?bookId=${bookId}`);
+        //     const charactersData = await charactersResponse.json();
+        //     if (charactersData.success) {
+        //         context += '人物关系：\n' + charactersData.value + '\n\n';
+        //     }
+        // } catch (error) {
+        //     console.error('加载人物关系失败:', error);
+        // }
+        
+        // 获取本章节摘要
+        try {
+            const chapterResponse = await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`);
+            const chapterData = await chapterResponse.json();
+            if (chapterData.summary) {
+                context += '本章摘要：\n' + chapterData.summary + '\n\n';
+            }
+        } catch (error) {
+            console.error('加载章节摘要失败:', error);
+        }
+
+        const prompt = `作为一个专业的小说写作助手，请根据以下信息生成一个200字左右的详细章节细纲。
+细纲需要包含：
+1. 具体场景设定和场景转换
+2. 重要事件的发生过程
+3. 如何设计情节来吸引读者注意
+4. 重要的伏笔和线索安排
+
+${context}
+
+请以分点方式输出，每个场景一个要点，重点标注需要着重描写的部分。`;
+
+        const detailedOutline = await callLargeModel(selectedModel, prompt);
+        summaryInput.value = detailedOutline;
+    } catch (error) {
+        console.error('生成章节细节失败:', error);
+        summaryInput.value = '生成细节失败，请重试';
+    }
+} 
