@@ -473,7 +473,16 @@ async function callLargeModel(modelId, prompt) {
             });
 
             const result = await response.json();
+
             if (result.choices && result.choices[0]) {
+                            //写入日志
+            await fetch('/api/write-log', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userMessage: prompt, aiResponse: result.choices[0].message.content })
+            });
                 return result.choices[0].message.content;
             }
         }
@@ -507,8 +516,13 @@ async function generateModalWorldView() {
     const selectedModel = modelSelect.value;
     const novelType = novelTypeSelect.value;
     const modalText = document.getElementById('modalText');
-
-    const prompt = `请你作为一个专业的小说策划师，为我构建一个完整的${novelType}类型小说的世界观设定。
+//获取生成世界观的要求
+    const worldRequirements = document.getElementById('worldRequirements').value;
+    //获取当前世界观的内容
+    const worldViewResponse = modalText.value;
+    let prompt = `用户给出的建议：\n${worldRequirements}\n\n`;
+    prompt += `当前世界观：\n${worldViewResponse}\n\n`;
+    prompt += `请你作为一个专业的小说策划师，为我构建一个完整的${novelType}类型小说的世界观设定。
 需要包含以下要素：
 1. 世界背景：整体世界观的基本设定，包括时代背景、空间结构等
 2. 核心法则：该世界运行的基本规则，如修炼体系、科技水平、力量体系等
@@ -516,6 +530,7 @@ async function generateModalWorldView() {
 4. 特殊元素：独特的物品、生物、现象等
 5. 文明特征：世界中的文明发展水平、文化特点等
 6. 冲突源：潜在的矛盾点和冲突来源
+7.丰富的想象力、逻辑自洽
 
 请详细描述每个方面，使其既符合${novelType}小说的特点，又具有独特性和创新性。`;
 
@@ -559,8 +574,11 @@ async function generateCharacters() {
             console.error('获取故事大纲失败:', error);
         }
     }
-
-    const prompt = `请你作为一个专业的小说策划师，${context ? '基于以下信息：\n\n' + context + '\n\n' : ''}为我构建一组完整的小说人物设定。
+//获取生成人物的要求        
+    const characterRequirements = document.getElementById('characterRequirements').value;
+     context += '用户给出的建议：\n' + characterRequirements + '\n\n';
+    context += '当前人物设定：\n' + worldViewResponse + '\n\n';
+    const  prompt = `请你作为一个专业的小说策划师，${context ? '基于以下信息：\n\n' + context + '\n\n' : ''}为我构建一组完整的小说人物设定。
 需要包含以下要素：
 1. 主要人物：详细描述每个主要人物的性格特征、背景故事、能力特点等
 2. 次要人物：简要描述重要的配角人物
@@ -639,11 +657,11 @@ async function generateChapterOutline() {
         const worldTimelineData = await worldTimelineResponse.json();
         const worldTimeline = worldTimelineData.value || '';
         const prompt = `请根据以下世界观，故事大纲和人物设定，生成${chapterCount}章的小说章节目录。
-每章的格式必须严格按照："章节序号，章节名称，【章节目标 | 发生地点 | 出场人物 | 关键事件 | 伏笔/回收 | 情绪基调】"字数100字左右，写清楚本章的剧情。
+每章的格式必须严格按照："章节序号，章节名称，【章节目标 |发生时间 | 发生地点 | 出场人物 | 关键事件 | 伏笔/回收 | 情绪基调】"字数100字左右，写清楚本章的剧情。
 如果有多个人物出现，用"||"分隔。一句话介绍应该包含
 例如：
-1，初入修仙界，【章节目标：少年踏上修行之路。| 发生地点：修仙界 | 出场人物：张三 | 关键事件：初入修仙界 | 伏笔/回收：无 | 情绪基调：热血】
-2，寻找灵药，【章节目标：寻找灵药 | 发生地点：修仙界 | 出场人物：张三||李四 | 关键事件：寻找灵药 | 伏笔/回收：无 | 情绪基调：热血】
+1，初入修仙界，【章节目标：少年踏上修行之路。| 发生时间：1000年 | 发生地点：修仙界 | 出场人物：张三 | 关键事件：初入修仙界 | 伏笔/回收：无 | 情绪基调：热血】
+2，寻找灵药，【章节目标：寻找灵药 | 发生时间：1001年 | 发生地点：修仙界 | 出场人物：张三||李四 | 关键事件：寻找灵药 | 伏笔/回收：无 | 情绪基调：热血】
 ...
 
 世界观设定：
@@ -1082,14 +1100,19 @@ async function generateWorldTimeline() {
                 context += '人物设定：\n' + charactersData.value + '\n\n';
             }
         }
-
+ //获取当前大纲的内容
+        const worldTimelineResponse = modalText.value;
+        context += '当前大纲：\n' + worldTimelineResponse + '\n\n';
+//获取生成大纲的要求
+const worldTimelineRequirements = document.getElementById('worldTimelineRequirements').value;
+context += '用户给出的建议：\n' + worldTimelineRequirements + '\n\n';
         const prompt = `作为一个专业的小说策划师，请根据以下信息构建一个完整的故事大纲：
 
 ${context}
 请按照以下要求构建故事大纲：
 
 1. 整体架构：
-   - 分为3-5个主要篇章
+   - 分为5-10个主要篇章
    - 每个篇章的主要剧情走向
    - 篇章之间的关联和递进关系
 

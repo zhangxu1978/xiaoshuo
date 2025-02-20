@@ -806,7 +806,7 @@ async function generateChapterDetail() {
         
         // 获取大纲
         try {
-            const outlineResponse = await fetch(`/api/settings/outline?bookId=${bookId}`);
+            const outlineResponse = await fetch(`/api/settings/worldTimeline?bookId=${bookId}`);
             const outlineData = await outlineResponse.json();
             if (outlineData.success) {
                 context += '故事大纲：\n' + outlineData.value + '\n\n';
@@ -815,29 +815,32 @@ async function generateChapterDetail() {
             console.error('加载大纲失败:', error);
         }
         
-        // 获取人物关系
-        // try {
-        //     const charactersResponse = await fetch(`/api/settings/characters?bookId=${bookId}`);
-        //     const charactersData = await charactersResponse.json();
-        //     if (charactersData.success) {
-        //         context += '人物关系：\n' + charactersData.value + '\n\n';
-        //     }
-        // } catch (error) {
-        //     console.error('加载人物关系失败:', error);
-        // }
-        
+       // 获取人物关系
+        try {
+            const charactersResponse = await fetch(`/api/settings/characters?bookId=${bookId}`);
+            const charactersData = await charactersResponse.json();
+            if (charactersData.success) {
+                context += '人物关系：\n' + charactersData.value + '\n\n';
+            }
+        } catch (error) {
+            console.error('加载人物关系失败:', error);
+        }
+        //let zhaiyao="";
         // 获取本章节摘要
         try {
-            const chapterResponse = await fetch(`/api/chapters/${chapterId}?bookId=${bookId}`);
+            const chapterResponse = await fetch(`/api/chapter-settings?bookId=${bookId}&chapterId=${chapterId}`);
             const chapterData = await chapterResponse.json();
-            if (chapterData.summary) {
-                context += '本章摘要：\n' + chapterData.summary + '\n\n';
+            const settings = chapterData.settings;
+            if ( settings.summary ) {
+                context += '本章摘要：\n' +  settings.summary + '\n\n';
+                console.log('本章摘要：'+ settings.summary );
+               // zhaiyao= settings.summary ;
             }
         } catch (error) {
             console.error('加载章节摘要失败:', error);
         }
 
-        const prompt = `作为一个专业的小说写作助手，请根据以下信息生成一个200字左右的详细章节细纲。
+        const prompt = `作为一个专业的小说写作助手，请根据下面信息中的本章摘要生成一个200字左右的第${chapterId}章的章节细纲。
 细纲需要包含：
 1. 具体场景设定和场景转换
 2. 重要事件的发生过程

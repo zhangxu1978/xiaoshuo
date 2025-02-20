@@ -6,6 +6,35 @@ const session = require('express-session');
 const OpenAI = require('openai');
 const fetch = require('node-fetch');
 
+// 创建日志目录
+const logsDir = path.join(__dirname, 'logs');
+try {
+    if (!fs.existsSync(logsDir)) {
+        fs.mkdirSync(logsDir, { recursive: true });
+    }
+} catch (error) {
+    console.error('创建logs目录失败:', error);
+}
+
+// 日志写入函数
+function writeToLog(userMessage, aiResponse) {
+    try {
+        const now = new Date();
+        const fileName = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}.log`;
+        const logPath = path.join(logsDir, fileName);
+        
+        const logContent = `时间: ${now.toISOString()}\n` +
+                          `字数: ${JSON.stringify(userMessage, null, 2).length}\n` +
+                          `用户发送:\n${JSON.stringify(userMessage, null, 2)}\n\n` +
+                          `AI回复字数: ${aiResponse.length}:\n${JSON.stringify(aiResponse, null, 2)}\n` +
+                          `----------------------------------------\n`;
+        
+        fs.appendFileSync(logPath, logContent, 'utf8');
+    } catch (error) {
+        console.error('写入日志失败:', error);
+    }
+}
+
 // 导入 Gradio 客户端
 let gradioClient = null;
 let isGradioInitialized = false;
@@ -165,8 +194,34 @@ function readBooks() {
 function saveBooks(books) {
     fs.writeFileSync(path.join(__dirname, 'books.json'), JSON.stringify(books, null, 2));
 }
+//增加一个删除书籍的接口，删除书籍、章节、各种设定、摘要
+app.delete('/api/books/:bookId', (req, res) => {
+    try {
+        const bookId = parseInt(req.params.bookId);
+        let books = readBooks();
+        const bookIndex = books.findIndex(b => b.id === bookId);
+        
+        if (bookIndex === -1) {
+            return res.status(404).json({ success: false, message: '书籍不存在' });
+        }
+        
+        books.splice(bookIndex, 1);
+        saveBooks(books);
+        deleteBookFiles(bookId);
 
+        res.json({ success: true, message: '书籍删除成功' });
+    } catch (error) {
+        console.error('删除书籍失败:', error);
+        res.status(500).json({ success: false, message: '删除书籍失败' });
+    }
+});
 
+//通过接口写入日志
+app.post('/api/write-log', (req, res) => {
+    const { userMessage, aiResponse } = req.body;
+    writeToLog(userMessage, aiResponse);
+    res.json({ success: true, message: '日志写入成功' });
+});
 
 
 // 登录接口
@@ -694,10 +749,12 @@ app.post('/api/chat', async (req, res) => {
             const result = await response.json();
             console.log('华为云AI返回结果时长:', new Date() - startTime);
             if (result.choices && result.choices[0]) {
+                const aiResponse = result.choices[0].message.content;
+                writeToLog(messages, aiResponse);
                 res.json({
                     choices: [{
                         message: {
-                            content: result.choices[0].message.content
+                            content: aiResponse
                         }
                     }]
                 });
@@ -728,11 +785,10 @@ app.post('/api/chat', async (req, res) => {
                 })
             });
             const result = await response.json();
-            //序列化火山引擎DeepSeekR1返回结果: {"choices":[{"finish_reason":"stop","index":0,"logprobs":null,"message":{"content":"\n\n你好！很高兴见到你。有什么我可以帮助你的吗？","reasoning_content":"好的，用户发来了"你好"，这是一个常见的中文问候。我需要用中文回复，保持友好和自然。首先，我应 该回应问候，比如"你好！很高兴见到你。"然后，按照用户的要求，我需要提供一个例子来展示我的思考过程，但用户可能希望这个例子是中文的。接下来，我需要确保回答符合他们的需求，比如询问他们需要什么帮助。要注意保持口语化，避免使用格式化的结构，同时遵循中文的表达习惯。此外，要避免任何Markdown格式，保持文本简洁。最后，确保回答准确，符合用户的指示。现在，把这些整合起来，形成自然流畅的回应。\n","role":"assistant"}}],"created":1739110675,"id":"02173911066296584bae976ab37fc49f95f8882bb751870ac2210","model":"deepseek-r1-250120","object":"chat.completion","usage":{"completion_tokens":145,"prompt_tokens":12,"total_tokens":157,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":132}}}
-
-           const reasoning_content = result.choices[0].message["reasoning_content"];
-           const content = result.choices[0].message["content"];
-           const assistantMessage = "思考过程：" + reasoning_content + "\n\n回答："  + content;
+            const reasoning_content = result.choices[0].message["reasoning_content"];
+            const content = result.choices[0].message["content"];
+            const assistantMessage = "思考过程：" + reasoning_content + "\n\n回答："  + content;
+            writeToLog(messages, assistantMessage);
             res.json({
                 choices: [{
                     message: {
@@ -760,10 +816,12 @@ app.post('/api/chat', async (req, res) => {
             });
             const result = await response.json();
             console.log('火山引擎DeepSeekV返回结果时长:', new Date() - startTime);
+            const aiResponse = result.choices[0].message.content;
+            writeToLog(messages, aiResponse);
             res.json({
                 choices: [{
                     message: {
-                        content: result.choices[0].message.content
+                        content: aiResponse
                     }
                 }]
             });
@@ -788,10 +846,12 @@ app.post('/api/chat', async (req, res) => {
             });
             const result = await response.json();
             console.log('英伟达AI返回结果时长:', new Date() - startTime);
+            const aiResponse = result.choices[0].message.content;
+            writeToLog(messages, aiResponse);
             res.json({
                 choices: [{
                     message: {
-                        content: result.choices[0].message.content
+                        content: aiResponse
                     }
                 }]
             });
@@ -817,10 +877,12 @@ app.post('/api/chat', async (req, res) => {
             const result = await response.json();
             console.log('天翼AI返回结果时长:', new Date() - startTime);
             if (result.code === 0 && result.choices && result.choices[0]) {
+                const aiResponse = result.choices[0].message.content;
+                writeToLog(messages, aiResponse);
                 res.json({
                     choices: [{
                         message: {
-                            content: result.choices[0].message.content
+                            content: aiResponse
                         }
                     }]
                 });
@@ -852,10 +914,12 @@ app.post('/api/chat', async (req, res) => {
             });
             const result = await response.json();
             console.log('硅基流动deepseekR1返回结果时长:', new Date() - startTime);
+            const aiResponse = result.choices[0].message.content;
+            writeToLog(messages, aiResponse);
             res.json({
                 choices: [{
                     message: {
-                        content: result.choices[0].message.content
+                        content: aiResponse
                     }
                 }]
             });
@@ -879,10 +943,12 @@ app.post('/api/chat', async (req, res) => {
             });
             const result = await response.json();
             console.log('硅基流动deepseekV3返回结果时长:', new Date() - startTime);
+            const aiResponse = result.choices[0].message.content;
+            writeToLog(messages, aiResponse);
             res.json({
                 choices: [{
                     message: {
-                        content: result.choices[0].message.content
+                        content: aiResponse
                     }
                 }]
             });
@@ -906,10 +972,12 @@ app.post('/api/chat', async (req, res) => {
             });
             const result = await response.json();
             console.log('百度AI返回结果时长:', new Date() - startTime);
+            const aiResponse = result.choices[0].message.content;
+            writeToLog(messages, aiResponse);
             res.json({
                 choices: [{
                     message: {
-                        content: result.choices[0].message.content
+                        content: aiResponse
                     }
                 }]
             });
@@ -1407,3 +1475,38 @@ app.post('/api/process-text-operations-preprocess', (req, res) => {
         result: result
     });
 });
+//删除所有书籍相关的文件
+function deleteBookFiles(bookId) {
+    try {
+        // 删除章节文件
+        const chapterFile = path.join(__dirname, `chapters_${bookId}.json`);
+        if (fs.existsSync(chapterFile)) {
+            fs.unlinkSync(chapterFile);
+        }
+
+        // 删除设定文件
+        const settingFile = path.join(__dirname, `setting_${bookId}.json`);
+        if (fs.existsSync(settingFile)) {
+            fs.unlinkSync(settingFile);
+        }
+
+        // 删除摘要文件
+        const summaryFile = path.join(__dirname, `summary_${bookId}.json`);
+        if (fs.existsSync(summaryFile)) {
+            fs.unlinkSync(summaryFile);
+        }
+
+        // 删除其他相关文件
+        const files = fs.readdirSync(__dirname);
+        files.forEach(file => {
+            if (file.includes(`_${bookId}.json`)) {
+                fs.unlinkSync(path.join(__dirname, file));
+            }
+        });
+
+        return true;
+    } catch (error) {
+        console.error('删除书籍相关文件失败:', error);
+        return false;
+    }
+}

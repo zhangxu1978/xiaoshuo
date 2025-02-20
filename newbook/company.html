@@ -530,6 +530,13 @@
                         const result = await response.json();
                         if (result.candidates && result.candidates[0] && result.candidates[0].content) {
                             aiResponse = result.candidates[0].content.parts[0].text;
+                            await fetch('/api/write-log', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ userMessage: googleaiformat, aiResponse: aiResponse })
+                            });
                         }
                     } else {
                         // 其他模型通过服务器处理
