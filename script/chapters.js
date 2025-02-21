@@ -577,7 +577,7 @@ async function generateCharacters() {
 //获取生成人物的要求        
     const characterRequirements = document.getElementById('characterRequirements').value;
      context += '用户给出的建议：\n' + characterRequirements + '\n\n';
-    context += '当前人物设定：\n' + worldViewResponse + '\n\n';
+   // context += '当前人物设定：\n' + worldViewResponse + '\n\n';
     const  prompt = `请你作为一个专业的小说策划师，${context ? '基于以下信息：\n\n' + context + '\n\n' : ''}为我构建一组完整的小说人物设定。
 需要包含以下要素：
 1. 主要人物：详细描述每个主要人物的性格特征、背景故事、能力特点等

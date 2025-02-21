@@ -23,7 +23,9 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle"></h2>
+               
                 <div style="display: flex; align-items: center;">
+                    <button onclick="saveModalContent()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
                     <span class="minimize" onclick="toggleMinimize(event)">_</span>
                     <span class="maximize" onclick="toggleMaximize(event)">&square;</span>
                     <span class="close" onclick="closeModal()">&times;</span>
@@ -107,10 +109,10 @@
                 <label for="includeCharactersForTimeline" style="margin-right: 10px;">加载人物设定</label>
                 <textarea id="worldTimelineRequirements" placeholder="请输入生成大纲的要求" style="width: 300px; height: 30px; padding: 5px; margin-right: 10px; vertical-align: top;"></textarea>
                 <button onclick="generateWorldTimeline()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">构建故事大纲</button>
+              
             </div>
             <textarea id="modalText" style="width: 100%; height: 80%;"></textarea>
-            <button onclick="saveModalContent()">保存</button>
-        </div>
+         </div>
     </div>
 
     <div id="aiModal" class="modal">

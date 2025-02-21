@@ -318,7 +318,7 @@ app.post('/api/books', (req, res) => {
     const { title } = req.body;
     const books = readBooks();
     const newBook = {
-        id: books.length + 1,
+        id: getMaxBookId() + 1,
         title,
         author:  req.session.user.username, // 实际应该从session获取
         chapters: []
@@ -1478,24 +1478,13 @@ app.post('/api/process-text-operations-preprocess', (req, res) => {
 //删除所有书籍相关的文件
 function deleteBookFiles(bookId) {
     try {
-        // 删除章节文件
-        const chapterFile = path.join(__dirname, `chapters_${bookId}.json`);
-        if (fs.existsSync(chapterFile)) {
-            fs.unlinkSync(chapterFile);
-        }
-
-        // 删除设定文件
-        const settingFile = path.join(__dirname, `setting_${bookId}.json`);
-        if (fs.existsSync(settingFile)) {
-            fs.unlinkSync(settingFile);
-        }
-
-        // 删除摘要文件
-        const summaryFile = path.join(__dirname, `summary_${bookId}.json`);
-        if (fs.existsSync(summaryFile)) {
-            fs.unlinkSync(summaryFile);
-        }
-
+        //删除摘要文件
+        const filesSettings = fs.readdirSync(__dirname+'/settings');
+        filesSettings.forEach(file => {
+            if (file.includes(`settings_${bookId}`)) {
+                fs.unlinkSync(path.join(__dirname, file));
+            }
+        });
         // 删除其他相关文件
         const files = fs.readdirSync(__dirname);
         files.forEach(file => {
@@ -1509,4 +1498,93 @@ function deleteBookFiles(bookId) {
         console.error('删除书籍相关文件失败:', error);
         return false;
     }
+}
+//增加一个接口 根据bookId复制文件
+app.post('/api/copy-book-files', (req, res) => {
+    try {
+        const { bookId } = req.body;
+        if (!req.session.user) {
+            return res.status(401).json({
+                success: false,
+                message: '未登录'
+            });
+        }
+        const result = copyBookFiles(bookId, req.session.user.username);
+        res.json({
+            success: result.success,
+            message: result.message
+        });
+    } catch (error) {
+        console.error('复制书籍失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '复制书籍失败: ' + error.message
+        });
+    }
+});
+
+
+//获取最大书籍id
+//根据bookId复制文件
+function copyBookFiles(bookId, username) {
+    try {
+        const books = readBooks();
+        const sourceBook = books.find(b => b.id === bookId);
+        
+        if (!sourceBook) {
+            return {
+                success: false,
+                message: '源书籍不存在'
+            };
+        }
+
+        const newBook = {
+            id: getMaxBookId() + 1,
+            title: `${sourceBook.title}的副本`,
+            author: username,
+            chapters: []
+        };
+        
+        books.push(newBook);
+        saveBooks(books);
+        
+        const copyTo = newBook.id;
+        const files = fs.readdirSync(__dirname);
+        files.forEach(file => {
+            if (file.includes(`_${bookId}.json`)) {
+                const targetFile = file.replace(`_${bookId}`, `_${copyTo}`);    
+                fs.copyFileSync(path.join(__dirname, file), path.join(__dirname, targetFile));
+            }
+        });
+        //复制摘要
+        const filesSettings = fs.readdirSync(__dirname+'/settings');
+        filesSettings.forEach(file => {
+            if (file.includes(`settings_${bookId}`)) {
+                const targetFile = file.replace(`settings_${bookId}`, `settings_${copyTo}`);    
+                fs.copyFileSync(path.join(__dirname+'/settings', file), path.join(__dirname+'/settings', targetFile));
+            }
+        });
+        return {
+            success: true,
+            message: '书籍复制成功'
+        };
+    } catch (error) {
+        console.error('复制书籍文件失败:', error);
+        return {
+            success: false,
+            message: error.message
+        };
+    }
+}
+
+//获取最大书籍id
+function getMaxBookId() {
+    const books = readBooks();
+    let maxId = 0;
+    books.forEach(book => {
+        if (book.id > maxId) {
+            maxId = book.id;
+        }
+    });
+    return maxId;
 }

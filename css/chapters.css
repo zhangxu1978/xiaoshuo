@@ -71,12 +71,12 @@ body {
 
 .modal-content {
     background-color: #fefefe;
-    margin: 15% auto;
+    margin: 6% auto;
     padding: 20px;
     border: 1px solid #888;
     width: 80%;
     height: 80%;
-    overflow-y: auto;
+    overflow-y: scroll;
     transition: all 0.3s ease;
 }
 

@@ -1,23 +1,5 @@
 [
   {
-    "id": 1,
-    "title": "示例小说",
-    "author": "zhangxu",
-    "status": "连载中",
-    "chapters": [
-      {
-        "id": 1,
-        "title": "第一章 开始",
-        "content": "这是第一章的内容..."
-      },
-      {
-        "id": 2,
-        "title": "第二章 发展",
-        "content": "这是第二章的内容..."
-      }
-    ]
-  },
-  {
     "id": 2,
     "title": "凌霜传",
     "author": "zhangxu",
@@ -54,6 +36,12 @@
   {
     "id": 7,
     "title": "坠落",
+    "author": "zhangxu",
+    "chapters": []
+  },
+  {
+    "id": 8,
+    "title": "陆怀瑾传的副本",
     "author": "zhangxu",
     "chapters": []
   }
