@@ -54,6 +54,18 @@ async function createDatabase(databaseName) {
         await session.close();
     }
 }
+//删除数据库
+async function deleteDatabase(databaseName) {
+    const session = driver.session();
+    try {
+        await session.run(`DROP DATABASE ${databaseName}`);
+        console.log(`数据库 ${databaseName} 删除成功`);
+    } catch (error) {
+        console.error(`数据库 ${databaseName} 删除失败:`, error);
+    } finally {
+        await session.close();
+    }
+}
 // 创建日志目录
 const logsDir = path.join(__dirname, 'logs');
 try {
@@ -392,7 +404,7 @@ app.post('/api/books', (req, res) => {
 async function startNeo4j() {
     try {
         const { spawn } = require('child_process');
-        const neo4jProcess = spawn('D:\\Program Files\\neo4j-community-2025.01.0\\bin\\neo4j.bat', ['console'], {
+        const neo4jProcess = spawn('"D:\\Program Files\\neo4j-community-2025.01.0\\bin\\neo4j.bat"', ['console'], {
             shell: true
         });
 
@@ -1638,7 +1650,8 @@ function deleteBookFiles(bookId) {
                 fs.unlinkSync(path.join(__dirname, file));
             }
         });
-
+//删除数据库
+deleteDatabase("book"+bookId);
         return true;
     } catch (error) {
         console.error('删除书籍相关文件失败:', error);
@@ -1695,6 +1708,7 @@ function copyBookFiles(bookId, username) {
         saveBooks(books);
         
         const copyTo = newBook.id;
+        createDatabase("book"+newBook.id);
         const files = fs.readdirSync(__dirname);
         files.forEach(file => {
             if (file.includes(`_${bookId}.json`)) {
