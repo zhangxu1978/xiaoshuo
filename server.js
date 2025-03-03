@@ -5,7 +5,55 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const OpenAI = require('openai');
 const fetch = require('node-fetch');
+const neo4j = require('neo4j-driver');
+// 读取配置文件
+const configPath = path.join(__dirname, 'newbook', 'key.config');
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+// 连接Neo4j数据库
+const driver = neo4j.driver(
+    config.neo4j.uri,
+    neo4j.auth.basic(config.neo4j.username, config.neo4j.password)
+);
 
+// 处理图数据库操作文本的函数
+async function processGraphOperations(databaseName,text) {
+    const session = driver.session({ database: databaseName });
+    try {
+        // 使用正则表达式匹配Cypher查询语句
+        const cypherPattern = /MATCH|CREATE|MERGE|DELETE|SET|REMOVE|FOREACH|WITH|CALL|UNWIND|LOAD CSV/gi;
+        const statements = text.split(/[.;\n]/).filter(stmt => {
+            const trimmed = stmt.trim();
+            return trimmed && cypherPattern.test(trimmed);
+        });
+
+        // 按顺序执行每个查询语句
+        const results = [];
+        for (const statement of statements) {
+            if (statement.trim()) {
+                const result = await session.run(statement.trim());
+                results.push(result);
+            }
+        }
+        return results;
+    } catch (error) {
+        console.error('执行图数据库操作失败:', error);
+        throw error;
+    } finally {
+        await session.close();
+    }
+}
+//创建数据库
+async function createDatabase(databaseName) {
+    const session = driver.session();
+    try {
+        await session.run(`CREATE DATABASE ${databaseName}`);
+        console.log(`数据库 ${databaseName} 创建成功`);
+    } catch (error) {
+        console.error(`数据库 ${databaseName} 创建失败:`, error);
+    } finally {
+        await session.close();
+    }
+}
 // 创建日志目录
 const logsDir = path.join(__dirname, 'logs');
 try {
@@ -66,9 +114,7 @@ async function initGradioClient() {
     }
 }
 
-// 读取配置文件
-const configPath = path.join(__dirname, 'newbook', 'key.config');
-const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
 
 // 设置全局代理
 process.env.http_proxy = 'http://127.0.0.1:7890';
@@ -155,6 +201,18 @@ const baiduConfig = {
     apiKey: config.baidu.apiKey,
     apiBase: config.baidu.apiBase,
     model: config.baidu.model
+};
+//阿里云AI配置
+const aliyunConfig = {
+    apiKey: config.aliyun.apiKey,
+    apiBase: config.aliyun.apiBase,
+    model: config.aliyun.model
+};
+//移动云AI配置
+const yidongConfig = {
+    apiKey: config.yidong.apiKey,
+    apiBase: config.yidong.apiBase,
+    model: config.yidong.model
 };
 app.use(express.static(path.join(__dirname)));
 app.use(bodyParser.json({limit: '50mb'}));
@@ -320,17 +378,47 @@ app.post('/api/books', (req, res) => {
     const newBook = {
         id: getMaxBookId() + 1,
         title,
-        author:  req.session.user.username, // 实际应该从session获取
+        author:  req.session.user.username, 
         chapters: []
     };
     books.push(newBook);
     saveBooks(books);
+    //创建数据库
+    createDatabase("book"+ newBook.id);
     res.json({ success: true, book: newBook });
 });
 
+// 启动Neo4j数据库
+async function startNeo4j() {
+    try {
+        const { spawn } = require('child_process');
+        const neo4jProcess = spawn('D:\\Program Files\\neo4j-community-2025.01.0\\bin\\neo4j.bat', ['console'], {
+            shell: true
+        });
+
+        neo4jProcess.stdout.on('data', (data) => {
+            console.log(`Neo4j输出: ${data}`);
+        });
+
+        neo4jProcess.stderr.on('data', (data) => {
+            console.error(`Neo4j错误: ${data}`);
+        });
+
+        neo4jProcess.on('close', (code) => {
+            console.log(`Neo4j进程退出，退出码 ${code}`);
+        });
+
+        // 等待一段时间确保Neo4j启动
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        console.log('Neo4j数据库已启动');
+    } catch (error) {
+        console.error('启动Neo4j失败:', error);
+    }
+}
+
 app.listen(port, async () => {
     console.log(`服务器运行在 http://localhost:${port}`);
-    
+    await startNeo4j();
 });
 // 在 server.js 中添加以下函数和 API 端点
 
@@ -952,7 +1040,36 @@ app.post('/api/chat', async (req, res) => {
                     }
                 }]
             });
-        }   
+        }  
+        else if (model=="aliyun-ai"){
+            // 调用阿里云AI
+            const response = await fetch(`${aliyunConfig.apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${aliyunConfig.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: aliyunConfig.model,
+                    messages,
+                    temperature: temperature || 0.5,
+                    top_p: top_p || 0.8,
+                    max_tokens: max_tokens || 4048,
+                    stream: false
+                })
+            });
+            const result = await response.json();
+            console.log('阿里云AI返回结果时长:', new Date() - startTime);
+            const aiResponse = result.choices[0].message.content;
+            writeToLog(messages, aiResponse);
+            res.json({
+                choices: [{
+                    message: {
+                        content: aiResponse
+                    }
+                }]
+            });
+        }  
         else if (model=="baidu-ai"){
             // 调用百度AI
             const response = await fetch(`${baiduConfig.apiBase}/chat/completions`, {
@@ -981,7 +1098,36 @@ app.post('/api/chat', async (req, res) => {
                     }
                 }]
             });
-        }               
+        } 
+        else     if (model=="yidong-ai"){
+            // 调用移动云AI
+            const response = await fetch(`${yidongConfig.apiBase}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${yidongConfig.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: yidongConfig.model,
+                    messages,
+                    temperature: temperature || 0.5,
+                    top_p: top_p || 0.8,
+                    max_tokens: max_tokens || 2048,
+                    stream: false
+                })
+            });
+            const result = await response.json();
+            console.log('移动云AI返回结果时长:', result);
+            const aiResponse = result.choices[0].message.content;
+            writeToLog(messages, aiResponse);
+            res.json({
+                choices: [{
+                    message: {
+                        content: aiResponse
+                    }
+                }]
+            });
+        }       
         else {
             // 处理其他模型
             res.status(400).json({ error: { message: '不支持的模型类型' } });
@@ -1482,7 +1628,7 @@ function deleteBookFiles(bookId) {
         const filesSettings = fs.readdirSync(__dirname+'/settings');
         filesSettings.forEach(file => {
             if (file.includes(`settings_${bookId}`)) {
-                fs.unlinkSync(path.join(__dirname, file));
+                fs.unlinkSync(path.join(__dirname+'/settings', file));
             }
         });
         // 删除其他相关文件

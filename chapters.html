@@ -12,7 +12,7 @@
     <button class="setting-btn" onclick="showModal('worldTimeline')">故事大纲</button>
     <button class="setting-btn" onclick="showModal('characters')">人物设定</button>
     <button class="setting-btn" onclick="showModal('characterTimeline')">章节设定</button>
-    <button class="setting-btn" onclick="showModal('items')">物品设定</button>
+    <button class="setting-btn" onclick="showModal('items')">素材集合</button>
     <button class="setting-btn" onclick="generateStaticPage()">生成静态页面</button>
     <button class="setting-btn" onclick="showAiModal()">问问ai</button>
     <h1 id="bookTitle">章节目录</h1>
@@ -86,13 +86,13 @@
                 <select id="timelineModelSelect" style="padding: 5px; margin-right: 10px;">
                     <!-- 模型选项将通过JavaScript动态加载 -->
                 </select>
-                <input type="number" id="chapterCount" placeholder="章节数量" style="padding: 5px; margin-right: 10px; width: 100px;" min="1" value="50">
+                <input type="number" id="startChapter" placeholder="开始章节" style="width: 80px; padding: 5px; margin-right: 10px;" min="1"/>
+                <input type="number" id="endChapter" placeholder="结束章节" style="width: 80px; padding: 5px; margin-right: 10px;" min="1"/>
                 <textarea id="outlineRequirements" placeholder="请输入生成要求" style="width: 300px; height: 30px; padding: 5px; margin-right: 10px; vertical-align: top;"></textarea>
                 <button onclick="generateChapterOutline()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">生成章节目录</button>
                 <button onclick="regenerateChapterSummaries()" style="padding: 5px 10px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">重新生成摘要</button>
                 <div style="margin-top: 10px;">
-                    <input type="number" id="startChapter" placeholder="开始章节" style="width: 80px; padding: 5px; margin-right: 10px;" min="1"/>
-                    <input type="number" id="endChapter" placeholder="结束章节" style="width: 80px; padding: 5px; margin-right: 10px;" min="1"/>
+
                     <input type="number" id="chapterWordCount" placeholder="每章字数" style="width: 80px; padding: 5px; margin-right: 10px;" min="1000" value="2000"/>
                     <button onclick="regenerateChapters()" style="padding: 5px 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">重新生成章节</button>
                     第<span id="regenerateChapter">1</span>章生成完成

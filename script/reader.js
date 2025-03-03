@@ -507,19 +507,54 @@ async function generateChapterSummary() {
     const modelSelect = document.getElementById('summaryModelSelect');
     const selectedModel = modelSelect.value;
     const summaryInput = document.getElementById('chapterSummaryInput');
-    
+    let context='';
     if (!chapterContent.trim()) {
         alert('章节内容为空，无法生成摘要');
         return;
     }
-
+//世界观、人物关系、故事大纲
+    try {
+        const worldviewResponse = await   fetch(`/api/settings/environment?bookId=${bookId}`);
+        const worldviewData = await worldviewResponse.json();
+        if (worldviewData.success) {
+            context += '世界观设定：\n' + worldviewData.value + '\n\n';
+        }
+    }
+    catch(error){
+        console.error('加载世界观失败:', error);
+    }
+    //人物关系
+    try {
+        const charactersResponse = await fetch(`/api/settings/characters?bookId=${bookId}`);
+        const charactersData = await charactersResponse.json();
+        if (charactersData.success) {
+            context += '人物关系：\n' + charactersData.value + '\n\n';
+        }
+    }
+    catch(error){
+        console.error('加载人物关系失败:', error);
+    }
+    //故事大纲
+    try {
+        const storyResponse = await fetch(`/api/settings/story?bookId=${bookId}`);
+        const storyData = await storyResponse.json();
+        if (storyData.success) {
+            context += '故事大纲：\n' + storyData.value + '\n\n';
+        }
+    }
+    catch(error){
+        console.error('加载故事大纲失败:', error);
+    }
+    //章节内容
+    context += '章节内容：\n' + chapterContent + '\n\n';
     try {
         summaryInput.value = '正在生成摘要...';
         const prompt = `请对下面的章节内容进行全面的分析。
-       1、 以场景为单位，分析每个场景的背景、人物、情节、情感、冲突,伏笔，线索等。
-       2、 每个场景转换到下个场景转换方式
+       1、 以场景为单位，分析每个场景的时间、地点、人物、情节、情感、冲突,伏笔，线索等。
+       2、 对比章节和世界观、故事大纲和人物关系，找到新的人物，将新人物单独列出来补充到人物关系中。
+       3、 对比章节和世界观、故事大纲和人物关系，找到新的伏笔和线索，将新伏笔和线索单独列出来补充到故事大纲中。
 
-章节内容：${chapterContent}`;
+${context}`;
         
         summaryInput.value = await callLargeModel(selectedModel, prompt);
     } catch (error) {
@@ -573,7 +608,30 @@ async function startReconstruct() {
                 console.error('加载世界观失败:', error);
             }
         }
-
+//获取人物关系
+        if (loadCharacters) {
+        try {
+            const charactersResponse = await fetch(`/api/settings/characters?bookId=${bookId}`);
+            const charactersData = await charactersResponse.json();
+            if (charactersData.success) {
+                context += '人物关系：\n' + charactersData.value + '\n\n';
+            }
+        } catch (error) {
+                console.error('加载人物关系失败:', error);
+            }
+        }
+        //获取素材
+        if (loadItems) {
+            try {
+                const itemsResponse = await fetch(`/api/settings/items?bookId=${bookId}`);
+                const itemsData = await itemsResponse.json();
+                if (itemsData.success) {
+                    context += '素材：\n' + itemsData.value + '\n\n';
+                }
+            } catch (error) {
+                console.error('加载素材失败:', error);
+            }
+        }
         // 获取前后章节摘要
         if (prevCount > 0 || nextCount > 0) {
             try {
@@ -587,7 +645,7 @@ async function startReconstruct() {
             }
         }
 
-        const prompt = `你是一个专业的小说重构助手，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。
+        const prompt = `你是一个专业的作家，请根据提供的上下文信息和要求，对章节内容进行重构。保持故事的连贯性和整体性。
 
 ${context}
 
@@ -786,12 +844,12 @@ async function generateChapterDetail() {
     const summaryInput = document.getElementById('chapterSummaryInput');
     const modelSelect = document.getElementById('summaryModelSelect');
     const selectedModel = modelSelect.value;
-    
+    const zhaiyao=summaryInput.value;
     try {
         summaryInput.value = '正在生成细节...';
         
         // 构建上下文信息
-        let context = '';
+        let context = '本章摘要：\n'+zhaiyao+'\n\n';
         
         // 获取世界观设定
         try {
@@ -825,22 +883,9 @@ async function generateChapterDetail() {
         } catch (error) {
             console.error('加载人物关系失败:', error);
         }
-        //let zhaiyao="";
-        // 获取本章节摘要
-        try {
-            const chapterResponse = await fetch(`/api/chapter-settings?bookId=${bookId}&chapterId=${chapterId}`);
-            const chapterData = await chapterResponse.json();
-            const settings = chapterData.settings;
-            if ( settings.summary ) {
-                context += '本章摘要：\n' +  settings.summary + '\n\n';
-                console.log('本章摘要：'+ settings.summary );
-               // zhaiyao= settings.summary ;
-            }
-        } catch (error) {
-            console.error('加载章节摘要失败:', error);
-        }
 
-        const prompt = `作为一个专业的小说写作助手，请根据下面信息中的本章摘要生成一个200字左右的第${chapterId}章的章节细纲。
+
+        const prompt = `作为一个专业的小说写作助手，请参考下面信息中的世界观和人物关系并根据本章摘要生成一个200字左右的第${chapterId}章的章节细纲。
 细纲需要包含：
 1. 具体场景设定和场景转换
 2. 重要事件的发生过程

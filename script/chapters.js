@@ -638,7 +638,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function generateChapterOutline() {
     const modelSelect = document.getElementById('timelineModelSelect');
-    const chapterCount = document.getElementById('chapterCount').value;
+    const startChapter = document.getElementById('startChapter').value;
+    const endChapter = document.getElementById('endChapter').value;
+    const chapterCount = endChapter - startChapter + 1;
     const outlineRequirements = document.getElementById('outlineRequirements').value;
     const modalText = document.getElementById('modalText');
     const selectedModel = modelSelect.value;
@@ -656,12 +658,12 @@ async function generateChapterOutline() {
         const worldTimelineResponse = await fetch(`/api/settings/worldTimeline?bookId=${bookId}`);
         const worldTimelineData = await worldTimelineResponse.json();
         const worldTimeline = worldTimelineData.value || '';
-        const prompt = `请根据以下世界观，故事大纲和人物设定，生成${chapterCount}章的小说章节目录。
-每章的格式必须严格按照："章节序号，章节名称，【章节目标 |发生时间 | 发生地点 | 出场人物 | 关键事件 | 伏笔/回收 | 情绪基调】"字数100字左右，写清楚本章的剧情。
-如果有多个人物出现，用"||"分隔。一句话介绍应该包含
+        const prompt = `请根据以下世界观，故事大纲和人物设定，生成第${startChapter}章到第${endChapter}章共${chapterCount}章的小说章节目录。
+每章的格式必须严格按照："章节序号，章节名称，【章节目标 |发生时间 | 发生地点 | 出场人物 | 关键事件 | 伏笔/回收 | 情绪基调 | 场景1-核心冲突 | 场景2-核心冲突 | ...】"字数200字左右，写清楚本章的剧情。
+如果有多个人物或场景出现，用"||"分隔。一句话介绍应该包含
 例如：
-1，初入修仙界，【章节目标：少年踏上修行之路。| 发生时间：1000年 | 发生地点：修仙界 | 出场人物：张三 | 关键事件：初入修仙界 | 伏笔/回收：无 | 情绪基调：热血】
-2，寻找灵药，【章节目标：寻找灵药 | 发生时间：1001年 | 发生地点：修仙界 | 出场人物：张三||李四 | 关键事件：寻找灵药 | 伏笔/回收：无 | 情绪基调：热血】
+1，初入修仙界，【章节目标：少年踏上修行之路。| 发生时间：1000年 | 发生地点：修仙界 | 出场人物：张三 | 关键事件：初入宗门 | 伏笔/回收：无 | 情绪基调：热血 | 场景1：山门-核心冲突：弟子间的竞争 | 场景2：外门弟子住处-核心冲突：弟子间的竞争 | 场景3：藏经阁-核心冲突：弟子间的竞争】
+2，寻找灵药，【章节目标：寻找灵药 | 发生时间：1001年 | 发生地点：修仙界 | 出场人物：张三||李四 | 关键事件：寻找灵药 | 伏笔/回收：无 | 情绪基调：热血 | 场景1：药王谷-核心冲突：找不到位置 | 场景2 ：药王谷内仙藤-核心冲突：护药妖兽】
 ...
 
 世界观设定：
